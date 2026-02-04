@@ -1,1 +1,34 @@
+# === Project Specifics ===
 /UnitySim
+/libs/*.dll
+incoming_voice.webm
+*.onnx
+
+# === Python (Whisper Server) ===
+whisper_env/
+__pycache__/
+*.py[cod]
+*$py.class
+.venv/
+env/
+venv/
+.pytest_cache/
+
+# === React (Frontend) ===
+FodHunter.Web/node_modules/
+FodHunter.Web/dist/
+FodHunter.Web/dist-ssr/
+FodHunter.Web/*.local
+.eslintcache
+
+# === .NET (Vision Server) ===
+DotNetServer/**/bin/
+DotNetServer/**/obj/
+.vs/
+*.user
+*.userosscache
+*.sln.docstates
+
+# === OS Files ===
+.DS_Store
+Thumbs.db

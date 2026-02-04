@@ -17,7 +17,30 @@ builder.Services.AddCors(options =>
 });
 
 var app = builder.Build();
+
 app.UseCors("AllowReact");
+
+// Paste this in Program.cs after 'var app = builder.Build();'
+app.MapPost("/whisper", async (IFormFile file) =>
+{
+    Console.WriteLine($"---> Receiving audio for Whisper: {file?.FileName} ({file?.Length} bytes)");
+    
+    if (file == null || file.Length == 0) return Results.BadRequest("No audio file received.");
+
+    using var client = new HttpClient();
+    using var content = new MultipartFormDataContent();
+    
+    using var stream = file.OpenReadStream();
+    var fileContent = new StreamContent(stream);
+    // Forwarding to your 4090 Python server
+    content.Add(fileContent, "file", "audio.webm");
+
+    var response = await client.PostAsync("http://localhost:8000/transcribe", content);
+    var jsonResponse = await response.Content.ReadAsStringAsync();
+    
+    return Results.Content(jsonResponse, "application/json");
+});
+
 
 // Global state variables (Accessible to the whole file)
 string modelPath = "best.onnx";
@@ -78,6 +101,8 @@ app.MapGet("/latest", () => Results.Json(lastAiResult));
 app.Run("http://localhost:5000");
 
 // --- AI Logic Methods ---
+
+
 
 List<DetectionResult> RunDetection(InferenceSession session, byte[] imageBytes)
 {

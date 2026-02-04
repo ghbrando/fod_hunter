@@ -287,3 +287,44 @@ html, body, #root {
 .unity-check-item.pending {
   opacity: 0.6; /* Items not currently in view look "archived" */
 }
+.mic-btn.active {
+  background: #ff4444;
+  color: white;
+  animation: pulse 1.5s infinite;
+  border-color: #ff0000;
+}
+
+@keyframes pulse {
+  0% { box-shadow: 0 0 0 0 rgba(255, 68, 68, 0.7); }
+  70% { box-shadow: 0 0 0 10px rgba(255, 68, 68, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(255, 68, 68, 0); }
+}
+/* Normal Cue Card */
+.cue-card {
+  transition: all 0.3s ease;
+  border: 1px solid #00ff00; /* High-viz green for ACM project */
+}
+
+/* Ghost State: Dashed borders and transparency */
+.cue-card.ghost {
+  opacity: 0.6;
+  border: 1px dashed #ffaa00; /* Warning orange */
+  filter: grayscale(0.5);
+}
+
+/* Recording State: Pulse effect for the 4090 active state */
+.cue-card.recording {
+  border-color: #ff0000;
+  box-shadow: 0 0 15px rgba(255, 0, 0, 0.4);
+}
+
+.rec-dot {
+  color: #ff0000;
+  font-weight: bold;
+  font-size: 0.8rem;
+  animation: blink 1s infinite;
+}
+
+@keyframes blink {
+  50% { opacity: 0; }
+}
