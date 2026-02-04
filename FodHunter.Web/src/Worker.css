@@ -1,0 +1,58 @@
+.worker-theme {
+  background: #1a1a1a;
+  height: 100vh;
+  color: #fff;
+  font-family: sans-serif;
+  padding: 20px;
+}
+
+.task-card {
+  background: #2b2b2b;
+  border-radius: 8px;
+  padding: 20px;
+  margin-bottom: 15px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-left: 10px solid #444;
+}
+
+.task-card.priority-critical { border-left-color: #ff4444; }
+.task-card.priority-high { border-left-color: #ff8c42; }
+
+.resolve-btn {
+  background: #6ac045;
+  color: #000;
+  border: none;
+  padding: 15px 25px;
+  border-radius: 5px;
+  font-weight: bold;
+  font-size: 16px;
+  cursor: pointer;
+}
+
+.task-id { font-size: 24px; font-weight: bold; display: block; }
+.task-loc { color: #999; font-family: monospace; }
+
+/* Drone Dashboard Styles */
+.deck-card.is-resolved {
+  opacity: 0.4;
+  background: #1a1a1a;
+  border-left-color: #555 !important;
+  text-decoration: line-through;
+}
+
+.resolved-badge {
+  font-size: 9px;
+  color: #6ac045;
+  border: 1px solid #6ac045;
+  padding: 1px 4px;
+  border-radius: 2px;
+}
+
+/* Worker Dashboard Styles */
+.task-done {
+  opacity: 0.5;
+  background: #000;
+  border-left: 10px solid #222 !important;
+}

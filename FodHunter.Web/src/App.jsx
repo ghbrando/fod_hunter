@@ -1,5 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import './App.css';
+import { Routes, Route } from 'react-router-dom';
+import WorkerDashboard from './Worker.jsx';
 
 function App() {
   const [activeDetections, setActiveDetections] = useState([]);
@@ -81,7 +83,7 @@ function App() {
         const response = await fetch('http://localhost:5000/latest');
         const rawData = await response.json();
         const now = Date.now();
-        const GRACE_PERIOD = 3000;
+        const GRACE_PERIOD = 5000;
         const DISTANCE_THRESHOLD = 50;
 
         setActiveDetections(prev => {
@@ -101,9 +103,13 @@ function App() {
 
           const persistentGhosts = prev.filter(obj => {
             const isNotCurrentlySeen = !seenInThisFrame.find(s => s.id === obj.id);
-            const isWithinGracePeriod = (now - obj.lastSeen) < GRACE_PERIOD;
-            const isBeingRecorded = (isRecording && manualForm.id === obj.id);
-            return isNotCurrentlySeen && (isWithinGracePeriod || isBeingRecorded);
+            const isWithinGracePeriod = (now - obj.lastSeen) < 5000; // 5 second safety
+
+            // CRITICAL FIX: If this is the track Brandon is currently editing, 
+            // DO NOT let it flash or disappear even if AI loses it!
+            const isCurrentlySelected = manualForm.id === obj.id;
+
+            return isNotCurrentlySeen && (isWithinGracePeriod || isCurrentlySelected);
           });
 
           return [...seenInThisFrame, ...persistentGhosts].sort((a, b) => {
@@ -119,6 +125,14 @@ function App() {
     const interval = setInterval(fetchDetections, 200);
     return () => clearInterval(interval);
   }, [isRecording, manualForm.id]);
+
+  const selectTrack = (trackId) => {
+    console.log("Internal Select Fired for:", trackId);
+    setManualForm(prev => ({
+      ...prev,
+      id: trackId
+    }));
+  };
 
   // 2. WHISPER DICTATION LOGIC
   const startWhisperDictation = async (trackId = null) => {
@@ -170,6 +184,7 @@ function App() {
       mediaRecorder.start();
       setIsRecording(true);
       if (trackId) {
+        console.log("Fired selectTrack for:", trackId);
         setManualForm(prev => ({ ...prev, id: trackId }));
       }
       console.log(`Listening for ${trackId || 'manual entry'}...`);
@@ -190,241 +205,309 @@ function App() {
     }
   };
 
-  const commitToDeck = () => {
-    if (!manualForm.id || !manualForm.desc) {
-      alert('Please provide both Track ID and Description');
-      return;
+  const commitToDeck = async () => {
+    if (!manualForm.id || !manualForm.desc) return;
+
+    // Find the coordinates from activeDetections to save them for the worker
+    const currentObj = activeDetections.find(d => d.id === manualForm.id);
+
+    const entry = {
+      ...manualForm,
+      x: currentObj?.x || 0,
+      y: currentObj?.y || 0
+    };
+
+    try {
+      await fetch('http://127.0.0.1:5000/commit', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(entry)
+      });
+      setManualForm({ id: '', desc: '', priority: 'LOW' });
+      // Refresh the local log after committing
+      fetchDeckLogs();
+    } catch (err) {
+      console.error("Commit failed:", err);
     }
-    const entry = { ...manualForm, timestamp: new Date().toLocaleTimeString() };
-    setDeckLog([...deckLog, entry]);
-    setManualForm({ id: '', desc: '', priority: 'LOW' });
+  };
+  const fetchDeckLogs = async () => {
+    try {
+      const response = await fetch('http://127.0.0.1:5000/deck-logs');
+      const data = await response.json();
+      setDeckLog(data);
+    } catch (err) {
+      console.error("Log Sync Error:", err);
+    }
   };
 
-  const selectTrack = (trackId) => {
-    setManualForm(prev => ({ ...prev, id: trackId }));
-  };
+  // Add this useEffect to keep the logs in sync automatically
+  useEffect(() => {
+    fetchDeckLogs();
+    const interval = setInterval(fetchDeckLogs, 1000);
+    return () => clearInterval(interval);
+  }, []);
 
   return (
-    <div className="unity-gcs-theme">
-      <header className="unity-header">
-        <div className="header-left">
-          <div className="app-title">DRONE COMMAND STATION</div>
-          <div className="stat">OPERATOR: ELI MANNING</div>
-        </div>
-        <div className="header-right">
-          <div className={`status-indicator ${isRecording ? 'recording' : 'ready'}`}>
-            <span className="status-dot"></span>
-            WHISPER: {isRecording ? 'RECORDING' : 'READY'}
-          </div>
-        </div>
-      </header>
+    <Routes>
+      <Route path="/" element={
+        <div className="unity-gcs-theme">
+          <header className="unity-header">
+            <div className="header-left">
+              <div className="app-title">DRONE COMMAND STATION</div>
+              <div className="stat">OPERATOR: ELI MANNING</div>
+            </div>
+            <div className="header-right">
+              <div className={`status-indicator ${isRecording ? 'recording' : 'ready'}`}>
+                <span className="status-dot"></span>
+                WHISPER: {isRecording ? 'RECORDING' : 'READY'}
+              </div>
+            </div>
+          </header>
 
-      <div className="viewport-container">
-        {/* LEFT: AI Detection Panel */}
-        <aside className="unity-panel left">
-          <div className="panel-header">
-            <h2 className="panel-title">AI DETECTIONS</h2>
-            <div className="detection-count">{activeDetections.length} ACTIVE</div>
-          </div>
+          <div className="viewport-container">
+            {/* LEFT: AI Detection Panel */}
+            <aside className="unity-panel left">
+              <div className="panel-header">
+                <h2 className="panel-title">AI DETECTIONS</h2>
+                <div className="detection-count">{activeDetections.length} ACTIVE</div>
+              </div>
 
-          <div className="panel-content">
-            <div className="ai-cues">
-              {activeDetections.length === 0 ? (
-                <div className="empty-state">
-                  <div className="empty-icon">[ ]</div>
-                  <p>No active detections</p>
+              <div className="panel-content">
+                <div className="ai-cues">
+                  {activeDetections.length === 0 ? (
+                    <div className="empty-state">
+                      <div className="empty-icon">[ ]</div>
+                      <p>No active detections</p>
+                    </div>
+                  ) : (
+                    activeDetections.map(obj => {
+                      const isGhost = (Date.now() - obj.lastSeen) > 500;
+                      const isTarget = isRecording && manualForm.id === obj.id;
+                      const isSelected = manualForm.id === obj.id;
+
+                      return (
+                        <div
+                          key={obj.id}
+                          className={`cue-card ${isGhost ? 'ghost' : ''} ${isTarget ? 'recording' : ''} ${isSelected ? 'selected' : ''}`}
+                          onClick={() => selectTrack(obj.id)}
+                        >
+                          <div className="card-header">
+                            <span className="track-id">{obj.id}</span>
+                            {isTarget && <span className="rec-indicator">● REC</span>}
+                            {isGhost && !isTarget && <span className="ghost-indicator">LOST</span>}
+                          </div>
+
+                          <div className="card-coords">
+                            X: {obj.x.toFixed(1)} / Y: {obj.y.toFixed(1)}
+                          </div>
+
+                          <button
+                            className="mic-btn"
+                            onMouseDown={(e) => {
+                              e.stopPropagation();
+                              startWhisperDictation(obj.id);
+                            }}
+                            onMouseUp={(e) => {
+                              e.stopPropagation();
+                              stopWhisperDictation();
+                            }}
+                            onMouseLeave={(e) => {
+                              e.stopPropagation();
+                              stopWhisperDictation();
+                            }}
+                          >
+                            {isTarget ? (
+                              <>
+                                <svg width="12" height="12" viewBox="0 0 14 14" fill="currentColor" style={{ marginRight: '4px' }}>
+                                  <circle cx="7" cy="7" r="4" />
+                                </svg>
+                                Listening...
+                              </>
+                            ) : (
+                              <>
+                                <svg width="12" height="12" viewBox="0 0 14 14" fill="currentColor" style={{ marginRight: '4px' }}>
+                                  <rect x="5" y="2" width="4" height="6" rx="2" />
+                                  <path d="M3 7c0 2.2 1.8 4 4 4s4-1.8 4-4M7 11v3M5 14h4" stroke="currentColor" strokeWidth="1.2" fill="none" strokeLinecap="round" />
+                                </svg>
+                                Hold to Record
+                              </>
+                            )}
+                          </button>
+                        </div>
+                      );
+                    })
+                  )}
                 </div>
-              ) : (
-                activeDetections.map(obj => {
-                  const isGhost = (Date.now() - obj.lastSeen) > 500;
-                  const isTarget = isRecording && manualForm.id === obj.id;
-                  const isSelected = manualForm.id === obj.id;
+              </div>
+            </aside>
 
-                  return (
-                    <div
-                      key={obj.id}
-                      className={`cue-card ${isGhost ? 'ghost' : ''} ${isTarget ? 'recording' : ''} ${isSelected ? 'selected' : ''}`}
-                      onClick={() => selectTrack(obj.id)}
-                    >
-                      <div className="card-header">
-                        <span className="track-id">{obj.id}</span>
-                        {isTarget && <span className="rec-indicator">● REC</span>}
-                        {isGhost && !isTarget && <span className="ghost-indicator">LOST</span>}
-                      </div>
+            {/* CENTER: Main Feed + Form Overlay */}
+            <main className="video-viewport" style={{ overflow: 'hidden' }}>
+              <div className="viewport-controls">
+                <div className="control-group">
+                  <span className="control-label">DRONE CONTROLS</span>
+                </div>
+                <div className="control-hint">
+                  WASD/Arrows: Move | Q: Up | E: Down | R: Stop
+                </div>
+              </div>
 
-                      <div className="card-coords">
-                        X: {obj.x.toFixed(1)} / Y: {obj.y.toFixed(1)}
-                      </div>
+              <div className="stream-wrapper" style={{
+                width: '100%', height: '100%', display: 'flex',
+                alignItems: 'center', justifyContent: 'center', backgroundColor: '#000'
+              }}>
+                <div style={{
+                  position: 'relative',
+                  // This transform moves BOTH the image and the labels simultaneously
+                  transform: `translate3d(${viewState.x}px, ${viewState.y}px, 0) scale(${viewState.zoom})`,
+                  transition: 'transform 0.05s ease-out',
+                  willChange: 'transform'
+                }}>
+                  <img
+                    src="http://127.0.0.1:5000/stream"
+                    alt="DRONE_FEED"
+                    className="unity-stream"
+                    style={{ backfaceVisibility: 'hidden', imageRendering: 'pixelated' }}
+                  />
 
-                      <button
-                        className="mic-btn"
-                        onMouseDown={(e) => {
-                          e.stopPropagation();
-                          startWhisperDictation(obj.id);
-                        }}
-                        onMouseUp={(e) => {
-                          e.stopPropagation();
-                          stopWhisperDictation();
-                        }}
-                        onMouseLeave={(e) => {
-                          e.stopPropagation();
-                          stopWhisperDictation();
-                        }}
+                  {/* TACTICAL OVERLAY LAYER */}
+                  <div className="detection-overlay" style={{
+                    position: 'absolute', top: 0, left: 0, width: '100%', height: '100%',
+                    pointerEvents: 'none', zIndex: 9999 // Above video feed
+                  }}>
+                    {activeDetections.map(obj => {
+                      const isSelected = manualForm.id === obj.id;
+                      const isGhost = (Date.now() - obj.lastSeen) > 500;
+
+                      return (
+                        <div
+                          key={obj.id}
+                          style={{
+                            position: 'absolute',
+                            left: `${obj.x}px`,
+                            top: `${obj.y}px`,
+                            pointerEvents: 'auto', // Re-enable clicks for this label
+                            cursor: 'pointer',
+                            transform: 'translate(-50%, -50%)',
+                            zIndex: 10000
+                          }}
+                          // Using onMouseDown is faster than onClick for transformed layers
+                          onMouseDown={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            console.log("MANUAL OVERRIDE: Selecting", obj.id);
+                            selectTrack(obj.id); // This fills your form
+                          }}
+                        >
+                          <div className={`crosshair ${isGhost ? 'ghost' : ''} ${isSelected ? 'selected' : ''}`} />
+                          <div className={`tactical-label ${isSelected ? 'selected' : ''}`}>
+                            {obj.id}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              </div>
+
+              {/* Form Overlay at Bottom */}
+              <div className="form-overlay">
+                <div className="form-container">
+                  <div className="form-header">
+                    <h3>OPERATOR ENTRY</h3>
+                  </div>
+
+                  <div className="form-body">
+                    <div className="form-group track-group">
+                      <label>TRACK ID</label>
+                      <input
+                        value={manualForm.id}
+                        onChange={(e) => setManualForm({ ...manualForm, id: e.target.value })}
+                        placeholder="Enter or select track..."
+                        className="track-input"
+                      />
+                    </div>
+
+                    <div className="form-group priority-group">
+                      <label>PRIORITY</label>
+                      <select
+                        value={manualForm.priority}
+                        onChange={(e) => setManualForm({ ...manualForm, priority: e.target.value })}
+                        className="priority-select"
                       >
-                        {isTarget ? (
-                          <>
-                            <svg width="12" height="12" viewBox="0 0 14 14" fill="currentColor" style={{ marginRight: '4px' }}>
-                              <circle cx="7" cy="7" r="4" />
+                        <option value="LOW">LOW</option>
+                        <option value="MEDIUM">MEDIUM</option>
+                        <option value="HIGH">HIGH</option>
+                        <option value="CRITICAL">CRITICAL</option>
+                      </select>
+                    </div>
+
+                    <div className="form-group description-group">
+                      <label>DESCRIPTION</label>
+                      <div className="description-input-wrapper">
+                        <textarea
+                          value={manualForm.desc}
+                          onChange={(e) => setManualForm({ ...manualForm, desc: e.target.value })}
+                          placeholder="Type or use voice input..."
+                          className="description-input"
+                          rows="2"
+                        />
+                        <button
+                          className={`voice-record-btn ${isRecording ? 'recording' : ''}`}
+                          onMouseDown={() => startWhisperDictation()}
+                          onMouseUp={stopWhisperDictation}
+                          onMouseLeave={stopWhisperDictation}
+                          title="Hold to record"
+                        >
+                          {isRecording ? (
+                            <svg width="14" height="14" viewBox="0 0 14 14" fill="currentColor">
+                              <circle cx="7" cy="7" r="5" />
                             </svg>
-                            Listening...
-                          </>
-                        ) : (
-                          <>
-                            <svg width="12" height="12" viewBox="0 0 14 14" fill="currentColor" style={{ marginRight: '4px' }}>
+                          ) : (
+                            <svg width="14" height="14" viewBox="0 0 14 14" fill="currentColor">
                               <rect x="5" y="2" width="4" height="6" rx="2" />
                               <path d="M3 7c0 2.2 1.8 4 4 4s4-1.8 4-4M7 11v3M5 14h4" stroke="currentColor" strokeWidth="1.2" fill="none" strokeLinecap="round" />
                             </svg>
-                            Hold to Record
-                          </>
-                        )}
-                      </button>
+                          )}
+                        </button>
+                      </div>
                     </div>
-                  );
-                })
-              )}
-            </div>
-          </div>
-        </aside>
 
-        {/* CENTER: Main Feed + Form Overlay */}
-        <main className="video-viewport">
-          <div className="viewport-controls">
-            <div className="control-group">
-              <span className="control-label">DRONE CONTROLS</span>
-            </div>
-            <div className="control-hint">
-              WASD/Arrows: Move | Q: Up | E: Down | R: Stop
-            </div>
-          </div>
-
-          <div className="stream-wrapper" style={{ /* styles from previous response */ }}>
-            <img
-              src="http://localhost:5000/stream"
-              alt="DRONE_FEED"
-              className="unity-stream"
-              style={{
-                transform: `translate3d(${viewState.x}px, ${viewState.y}px, 0) scale(${viewState.zoom})`,
-                willChange: 'transform',
-                backfaceVisibility: 'hidden',
-                imageRendering: 'pixelated' // Keeps edges sharp for the demo
-              }}
-            />
-          </div>
-
-          {/* Form Overlay at Bottom */}
-          <div className="form-overlay">
-            <div className="form-container">
-              <div className="form-header">
-                <h3>OPERATOR ENTRY</h3>
-              </div>
-
-              <div className="form-body">
-                <div className="form-group track-group">
-                  <label>TRACK ID</label>
-                  <input
-                    value={manualForm.id}
-                    onChange={(e) => setManualForm({ ...manualForm, id: e.target.value })}
-                    placeholder="Enter or select track..."
-                    className="track-input"
-                  />
-                </div>
-
-                <div className="form-group priority-group">
-                  <label>PRIORITY</label>
-                  <select
-                    value={manualForm.priority}
-                    onChange={(e) => setManualForm({ ...manualForm, priority: e.target.value })}
-                    className="priority-select"
-                  >
-                    <option value="LOW">LOW</option>
-                    <option value="MEDIUM">MEDIUM</option>
-                    <option value="HIGH">HIGH</option>
-                    <option value="CRITICAL">CRITICAL</option>
-                  </select>
-                </div>
-
-                <div className="form-group description-group">
-                  <label>DESCRIPTION</label>
-                  <div className="description-input-wrapper">
-                    <textarea
-                      value={manualForm.desc}
-                      onChange={(e) => setManualForm({ ...manualForm, desc: e.target.value })}
-                      placeholder="Type or use voice input..."
-                      className="description-input"
-                      rows="2"
-                    />
-                    <button
-                      className={`voice-record-btn ${isRecording ? 'recording' : ''}`}
-                      onMouseDown={() => startWhisperDictation()}
-                      onMouseUp={stopWhisperDictation}
-                      onMouseLeave={stopWhisperDictation}
-                      title="Hold to record"
-                    >
-                      {isRecording ? (
-                        <svg width="14" height="14" viewBox="0 0 14 14" fill="currentColor">
-                          <circle cx="7" cy="7" r="5" />
-                        </svg>
-                      ) : (
-                        <svg width="14" height="14" viewBox="0 0 14 14" fill="currentColor">
-                          <rect x="5" y="2" width="4" height="6" rx="2" />
-                          <path d="M3 7c0 2.2 1.8 4 4 4s4-1.8 4-4M7 11v3M5 14h4" stroke="currentColor" strokeWidth="1.2" fill="none" strokeLinecap="round" />
-                        </svg>
-                      )}
+                    <button className="commit-btn" onClick={commitToDeck}>
+                      ▶ COMMIT TO DECK
                     </button>
                   </div>
                 </div>
-
-                <button className="commit-btn" onClick={commitToDeck}>
-                  ▶ COMMIT TO DECK
-                </button>
               </div>
-            </div>
-          </div>
-        </main>
+            </main>
 
-        {/* RIGHT: Deck Log */}
-        <aside className="unity-panel right">
-          <div className="panel-header">
-            <h2 className="panel-title">DECK LOG</h2>
-            <div className="log-count">{deckLog.length} ENTRIES</div>
-          </div>
-
-          <div className="panel-content">
-            {deckLog.length === 0 ? (
-              <div className="empty-state">
-                <div className="empty-icon">[ ]</div>
-                <p>No entries logged</p>
+            {/* RIGHT: Deck Log */}
+            <aside className="unity-panel right">
+              <div className="panel-content">
+                {deckLog
+                  .slice()
+                  .sort((a, b) => a.isResolved - b.isResolved) // Moves cleared items to bottom
+                  .map((item, i) => (
+                    <div
+                      key={item.id}
+                      className={`deck-card priority-${item.priority?.toLowerCase()} ${item.isResolved ? 'is-resolved' : ''}`}
+                    >
+                      <div className="deck-card-header">
+                        <span className="deck-track-id">{item.id}</span>
+                        {item.isResolved && <span className="resolved-badge">CLEARED</span>}
+                      </div>
+                      <div className="deck-card-desc">{item.desc}</div>
+                    </div>
+                  ))
+                }
               </div>
-            ) : (
-              deckLog.map((item, i) => (
-                <div key={i} className={`deck-card priority-${item.priority.toLowerCase()}`}>
-                  <div className="deck-card-header">
-                    <span className="deck-track-id">{item.id}</span>
-                    <span className={`priority-badge priority-${item.priority.toLowerCase()}`}>
-                      {item.priority}
-                    </span>
-                  </div>
-                  <div className="deck-card-desc">{item.desc}</div>
-                  <div className="deck-card-footer">
-                    <span className="timestamp">» {item.timestamp}</span>
-                  </div>
-                </div>
-              ))
-            )}
+            </aside>
           </div>
-        </aside>
-      </div>
-    </div>
+        </div>
+      } />
+
+      <Route path="/worker" element={<WorkerDashboard />} />
+    </Routes>
   );
 }
 

@@ -655,3 +655,77 @@ html, body, #root {
     max-width: 600px;
   }
 }
+
+/* === TACTICAL OVERLAY === */
+
+.detection-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+}
+
+.tactical-label {
+  position: absolute;
+  transform: translate(-50%, -140%);
+  background: rgba(0, 0, 0, 0.85);
+  border: 1px solid #6ac045;
+  color: #6ac045;
+  padding: 2px 6px;
+  font-family: 'Courier New', monospace;
+  font-size: 10px;
+  font-weight: bold;
+  border-radius: 2px;
+  white-space: nowrap;
+  transition: all 0.1s ease;
+}
+
+.tactical-label.selected {
+  background: #6ac045;
+  color: #000;
+  box-shadow: 0 0 8px #6ac045;
+}
+
+.crosshair {
+  position: absolute;
+  width: 24px;
+  height: 24px;
+  border: 1px solid rgba(106, 192, 69, 0.5);
+  border-radius: 50%;
+  transform: translate(-50%, -50%);
+}
+
+.crosshair.selected {
+  border-color: #6ac045;
+  border-width: 2px;
+}
+
+/* --- Consolidated Operator Dashboard Styles --- */
+.deck-card.is-resolved {
+  background: #1a1a1a !important; /* Solid dark background */
+  border-left-color: #444 !important; /* Dimm the priority indicator */
+  opacity: 1 !important; /* Stop the whole card from being transparent */
+}
+
+/* Strike through the ID */
+.deck-card.is-resolved .deck-track-id {
+  text-decoration: line-through;
+  color: #888;
+}
+
+/* Strike through the Description */
+.deck-card.is-resolved .deck-card-desc {
+  text-decoration: line-through;
+  color: #666;
+}
+
+/* Keep the CLEARED badge sharp and green */
+.deck-card.is-resolved .resolved-badge {
+  text-decoration: none !important;
+  display: inline-block;
+  color: #6ac045;
+  border: 1px solid #6ac045;
+  background: rgba(106, 192, 69, 0.1);
+  opacity: 1;
+}

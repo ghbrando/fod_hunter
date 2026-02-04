@@ -137,6 +137,31 @@ Console.WriteLine("   - POST /drone/move     (React → Backend)");
 Console.WriteLine("   - GET  /drone/command  (Unity polls this)");
 Console.WriteLine("   - POST /whisper        (Voice transcription)");
 
+List<FodEntry> deckLog = new List<FodEntry>();
+
+// 2. DEFINE THE NEW ROUTES (Before app.Run!)
+app.MapGet("/deck-logs", () => deckLog);
+
+app.MapPost("/resolve/{id}", (string id) => {
+    // Search the log for the ID regardless of lowercase/uppercase
+    var entry = deckLog.FirstOrDefault(e => e.Id.Equals(id, StringComparison.OrdinalIgnoreCase));
+    if (entry != null) {
+        entry.IsResolved = true;
+        Console.WriteLine($"[API] Task {id} marked as CLEAR by worker."); // Log it!
+        return Results.Ok();
+    }
+    return Results.NotFound($"Track {id} not found in log.");
+});
+
+// 3. UPDATE THE COMMIT ROUTE (Modify your existing POST / commit logic)
+app.MapPost("/commit", (FodEntry entry) => {
+    entry.Timestamp = DateTime.Now.ToString("HH:mm:ss");
+    deckLog.Add(entry);
+    Console.WriteLine($"[DRONE] New FOD Committed: {entry.Id}");
+    return Results.Ok();
+});
+
+
 app.Run("http://localhost:5000");
 
 // ==========================================
@@ -212,6 +237,17 @@ float CalculateIoU(DetectionResult boxA, DetectionResult boxB)
 // ==========================================
 // DATA MODELS
 // ==========================================
+public class FodEntry 
+{
+    public string Id { get; set; }
+    public string Desc { get; set; }
+    public string Priority { get; set; }
+    public string Timestamp { get; set; }
+    public bool IsResolved { get; set; } = false; // The Ground Worker flips this!
+    public float X { get; set; } // Store the location for the worker
+    public float Y { get; set; }
+}
+
 public class DetectionResult 
 { 
     public float x {get; set;} 
