@@ -1,7 +1,7 @@
 using Microsoft.ML.OnnxRuntime;
 using Microsoft.ML.OnnxRuntime.Tensors;
 using System.Drawing;
-using System.Text; // Added for Encoding
+using System.Text;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -17,22 +17,52 @@ builder.Services.AddCors(options =>
 });
 
 var app = builder.Build();
-
 app.UseCors("AllowReact");
 
-// Paste this in Program.cs after 'var app = builder.Build();'
+// ==========================================
+// DRONE MOVEMENT SYSTEM
+// ==========================================
+MoveCommand currentCommand = new MoveCommand { direction = "none", speed = 0f };
+object commandLock = new object();
+
+// React sends commands here
+app.MapPost("/drone/move", (MoveCommand cmd) =>
+{
+    lock (commandLock)
+    {
+        currentCommand = cmd;
+        Console.WriteLine($"[DRONE] Command: {cmd.direction} @ {cmd.speed}");
+    }
+    return Results.Ok(new { success = true });
+});
+
+// Unity polls this endpoint
+app.MapGet("/drone/command", () =>
+{
+    MoveCommand cmdToSend;
+    lock (commandLock)
+    {
+        cmdToSend = currentCommand;
+        // Reset after Unity reads (prevents drift)
+        currentCommand = new MoveCommand { direction = "none", speed = 0f };
+    }
+    return Results.Json(cmdToSend);
+});
+
+// ==========================================
+// WHISPER TRANSCRIPTION
+// ==========================================
 app.MapPost("/whisper", async (IFormFile file) =>
 {
-    Console.WriteLine($"---> Receiving audio for Whisper: {file?.FileName} ({file?.Length} bytes)");
+    Console.WriteLine($"---> Receiving audio: {file?.FileName} ({file?.Length} bytes)");
     
-    if (file == null || file.Length == 0) return Results.BadRequest("No audio file received.");
+    if (file == null || file.Length == 0) return Results.BadRequest("No audio file");
 
     using var client = new HttpClient();
     using var content = new MultipartFormDataContent();
     
     using var stream = file.OpenReadStream();
     var fileContent = new StreamContent(stream);
-    // Forwarding to your 4090 Python server
     content.Add(fileContent, "file", "audio.webm");
 
     var response = await client.PostAsync("http://localhost:8000/transcribe", content);
@@ -41,16 +71,18 @@ app.MapPost("/whisper", async (IFormFile file) =>
     return Results.Content(jsonResponse, "application/json");
 });
 
-
-// Global state variables (Accessible to the whole file)
+// ==========================================
+// AI VISION SYSTEM
+// ==========================================
 string modelPath = "best.onnx";
 byte[] latestFrame = Array.Empty<byte>();
 object frameLock = new object();
 var session = new InferenceSession(modelPath);
+List<DetectionResult> lastAiResult = new List<DetectionResult>();
 
-Console.WriteLine("FOD Hunter MVP: AI Brain Loaded & Server Ready!");
+Console.WriteLine("✅ FOD Hunter MVP: AI Brain Loaded & Server Ready!");
 
-// 2. The MJPEG Stream Endpoint for React
+// MJPEG Stream for React
 app.MapGet("/stream", async (HttpContext context) =>
 {
     var token = context.RequestAborted;
@@ -59,7 +91,7 @@ app.MapGet("/stream", async (HttpContext context) =>
     while (!token.IsCancellationRequested)
     {
         byte[] frameToSend;
-        lock (frameLock) { frameToSend = latestFrame; } // Removed 'Program.' prefix
+        lock (frameLock) { frameToSend = latestFrame; }
 
         if (frameToSend != null && frameToSend.Length > 0)
         {
@@ -74,13 +106,11 @@ app.MapGet("/stream", async (HttpContext context) =>
             } 
             catch { break; } 
         }
-        await Task.Delay(33, token);
+        await Task.Delay(1, token);
     }
 });
 
-List<DetectionResult> lastAiResult = new List<DetectionResult>();
-
-// 3. The Unity Upload & Detection Endpoint
+// Unity uploads frames + gets detections
 app.MapPost("/", async (HttpContext context) =>
 {
     using var ms = new MemoryStream();
@@ -92,18 +122,26 @@ app.MapPost("/", async (HttpContext context) =>
     lock (frameLock) { latestFrame = imageBytes; }
 
     var result = RunDetection(session, imageBytes);
-    lastAiResult = ApplyNMS(result, 0.45f); // Save it here!
+    lastAiResult = ApplyNMS(result, 0.45f);
     return Results.Json(lastAiResult);
 });
 
+// React gets latest detections
 app.MapGet("/latest", () => Results.Json(lastAiResult));
+
+Console.WriteLine("📡 Endpoints Active:");
+Console.WriteLine("   - GET  /stream         (Video feed)");
+Console.WriteLine("   - GET  /latest         (AI detections)");
+Console.WriteLine("   - POST /               (Unity frame upload)");
+Console.WriteLine("   - POST /drone/move     (React → Backend)");
+Console.WriteLine("   - GET  /drone/command  (Unity polls this)");
+Console.WriteLine("   - POST /whisper        (Voice transcription)");
 
 app.Run("http://localhost:5000");
 
-// --- AI Logic Methods ---
-
-
-
+// ==========================================
+// AI HELPER METHODS
+// ==========================================
 List<DetectionResult> RunDetection(InferenceSession session, byte[] imageBytes)
 {
     var detections = new List<DetectionResult>();
@@ -137,7 +175,8 @@ List<DetectionResult> RunDetection(InferenceSession session, byte[] imageBytes)
             if (conf > 0.80f)
             {
                 detections.Add(new DetectionResult { 
-                    x = output[0,0,i], y = output[0,1,i], w = output[0,2,i], h = output[0,3,i], conf = conf 
+                    x = output[0,0,i], y = output[0,1,i], 
+                    w = output[0,2,i], h = output[0,3,i], conf = conf 
                 });
             }
         }
@@ -170,4 +209,20 @@ float CalculateIoU(DetectionResult boxA, DetectionResult boxB)
     return intersection / (boxA.w * boxA.h + boxB.w * boxB.h - intersection);
 }
 
-public class DetectionResult { public float x {get; set;} public float y {get; set;} public float w {get; set;} public float h {get; set;} public float conf {get; set;} }
+// ==========================================
+// DATA MODELS
+// ==========================================
+public class DetectionResult 
+{ 
+    public float x {get; set;} 
+    public float y {get; set;} 
+    public float w {get; set;} 
+    public float h {get; set;} 
+    public float conf {get; set;} 
+}
+
+public class MoveCommand 
+{ 
+    public string direction { get; set; } = "none";
+    public float speed { get; set; } = 0f;
+}

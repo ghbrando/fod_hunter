@@ -6,12 +6,73 @@ function App() {
   const [deckLog, setDeckLog] = useState([]);
   const [isRecording, setIsRecording] = useState(false);
   const [manualForm, setManualForm] = useState({ id: '', desc: '', priority: 'LOW' });
-  
+
   const nextIdRef = useRef(1);
   const mediaRecorderRef = useRef(null);
   const audioChunksRef = useRef([]);
-  
+  const [viewState, setViewState] = useState({ x: 0, y: 0, zoom: 1 });
+
   const getDistance = (p1, p2) => Math.sqrt(Math.pow(p1.x - p2.x, 2) + Math.pow(p1.y - p2.y, 2));
+
+  // DRONE MOVEMENT CONTROLS
+  const sendDroneCommand = async (direction, speed = 1.0) => {
+    try {
+      const response = await fetch('http://localhost:5000/drone/move', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ direction, speed })
+      });
+
+      if (!response.ok) {
+        console.error('Failed to send drone command');
+      }
+    } catch (err) {
+      console.error('Drone command error:', err);
+    }
+  };
+
+  const handleKeyPress = (e) => {
+    // Don't process if typing in input fields
+    if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+
+    const speed = 1.0; // Adjust this for faster/slower movement
+
+    switch (e.key.toLowerCase()) {
+      case 'w':
+      case 'arrowup':
+        sendDroneCommand('forward', speed);
+        break;
+      case 's':
+      case 'arrowdown':
+        sendDroneCommand('backward', speed);
+        break;
+      case 'a':
+      case 'arrowleft':
+        sendDroneCommand('left', speed);
+        break;
+      case 'd':
+      case 'arrowright':
+        sendDroneCommand('right', speed);
+        break;
+      case 'q':
+        sendDroneCommand('up', speed);
+        break;
+      case 'e':
+        sendDroneCommand('down', speed);
+        break;
+      case 'r':
+        sendDroneCommand('stop', 0);
+        break;
+      default:
+        break;
+    }
+  };
+
+  // Add keyboard listener
+  useEffect(() => {
+    window.addEventListener('keydown', handleKeyPress);
+    return () => window.removeEventListener('keydown', handleKeyPress);
+  }, []);
 
   // 1. POLLING AI DATA
   useEffect(() => {
@@ -21,7 +82,7 @@ function App() {
         const rawData = await response.json();
         const now = Date.now();
         const GRACE_PERIOD = 3000;
-        const DISTANCE_THRESHOLD = 50; 
+        const DISTANCE_THRESHOLD = 50;
 
         setActiveDetections(prev => {
           const seenInThisFrame = rawData.map(det => {
@@ -29,11 +90,11 @@ function App() {
             if (match) {
               return { ...match, x: det.x, y: det.y, lastSeen: now };
             } else {
-              return { 
-                id: `TRACK-${nextIdRef.current++}`, 
-                x: det.x, 
-                y: det.y, 
-                lastSeen: now 
+              return {
+                id: `TRACK-${nextIdRef.current++}`,
+                x: det.x,
+                y: det.y,
+                lastSeen: now
               };
             }
           });
@@ -49,9 +110,9 @@ function App() {
             return a.id.localeCompare(b.id, undefined, { numeric: true });
           });
         });
-        
-      } catch (err) { 
-        console.error("Sync Error:", err); 
+
+      } catch (err) {
+        console.error("Sync Error:", err);
       }
     };
 
@@ -89,14 +150,14 @@ function App() {
             setIsRecording(false);
             return;
           }
-          
+
           const data = await response.json();
           console.log("Transcription received:", data.text);
 
           if (data.text) {
-            setManualForm(prev => ({ 
-              ...prev, 
-              desc: data.text 
+            setManualForm(prev => ({
+              ...prev,
+              desc: data.text
             }));
           }
         } catch (err) {
@@ -165,7 +226,7 @@ function App() {
             <h2 className="panel-title">AI DETECTIONS</h2>
             <div className="detection-count">{activeDetections.length} ACTIVE</div>
           </div>
-          
+
           <div className="panel-content">
             <div className="ai-cues">
               {activeDetections.length === 0 ? (
@@ -180,8 +241,8 @@ function App() {
                   const isSelected = manualForm.id === obj.id;
 
                   return (
-                    <div 
-                      key={obj.id} 
+                    <div
+                      key={obj.id}
                       className={`cue-card ${isGhost ? 'ghost' : ''} ${isTarget ? 'recording' : ''} ${isSelected ? 'selected' : ''}`}
                       onClick={() => selectTrack(obj.id)}
                     >
@@ -190,12 +251,12 @@ function App() {
                         {isTarget && <span className="rec-indicator">● REC</span>}
                         {isGhost && !isTarget && <span className="ghost-indicator">LOST</span>}
                       </div>
-                      
+
                       <div className="card-coords">
                         X: {obj.x.toFixed(1)} / Y: {obj.y.toFixed(1)}
                       </div>
 
-                      <button 
+                      <button
                         className="mic-btn"
                         onMouseDown={(e) => {
                           e.stopPropagation();
@@ -212,14 +273,14 @@ function App() {
                       >
                         {isTarget ? (
                           <>
-                            <svg width="12" height="12" viewBox="0 0 14 14" fill="currentColor" style={{marginRight: '4px'}}>
+                            <svg width="12" height="12" viewBox="0 0 14 14" fill="currentColor" style={{ marginRight: '4px' }}>
                               <circle cx="7" cy="7" r="4" />
                             </svg>
                             Listening...
                           </>
                         ) : (
                           <>
-                            <svg width="12" height="12" viewBox="0 0 14 14" fill="currentColor" style={{marginRight: '4px'}}>
+                            <svg width="12" height="12" viewBox="0 0 14 14" fill="currentColor" style={{ marginRight: '4px' }}>
                               <rect x="5" y="2" width="4" height="6" rx="2" />
                               <path d="M3 7c0 2.2 1.8 4 4 4s4-1.8 4-4M7 11v3M5 14h4" stroke="currentColor" strokeWidth="1.2" fill="none" strokeLinecap="round" />
                             </svg>
@@ -237,31 +298,52 @@ function App() {
 
         {/* CENTER: Main Feed + Form Overlay */}
         <main className="video-viewport">
-          <img src="http://localhost:5000/stream" alt="DRONE_FEED" className="unity-stream" />
-          
+          <div className="viewport-controls">
+            <div className="control-group">
+              <span className="control-label">DRONE CONTROLS</span>
+            </div>
+            <div className="control-hint">
+              WASD/Arrows: Move | Q: Up | E: Down | R: Stop
+            </div>
+          </div>
+
+          <div className="stream-wrapper" style={{ /* styles from previous response */ }}>
+            <img
+              src="http://localhost:5000/stream"
+              alt="DRONE_FEED"
+              className="unity-stream"
+              style={{
+                transform: `translate3d(${viewState.x}px, ${viewState.y}px, 0) scale(${viewState.zoom})`,
+                willChange: 'transform',
+                backfaceVisibility: 'hidden',
+                imageRendering: 'pixelated' // Keeps edges sharp for the demo
+              }}
+            />
+          </div>
+
           {/* Form Overlay at Bottom */}
           <div className="form-overlay">
             <div className="form-container">
               <div className="form-header">
                 <h3>OPERATOR ENTRY</h3>
               </div>
-              
+
               <div className="form-body">
                 <div className="form-group track-group">
                   <label>TRACK ID</label>
-                  <input 
-                    value={manualForm.id} 
-                    onChange={(e) => setManualForm({...manualForm, id: e.target.value})}
+                  <input
+                    value={manualForm.id}
+                    onChange={(e) => setManualForm({ ...manualForm, id: e.target.value })}
                     placeholder="Enter or select track..."
                     className="track-input"
                   />
                 </div>
-                
+
                 <div className="form-group priority-group">
                   <label>PRIORITY</label>
-                  <select 
+                  <select
                     value={manualForm.priority}
-                    onChange={(e) => setManualForm({...manualForm, priority: e.target.value})}
+                    onChange={(e) => setManualForm({ ...manualForm, priority: e.target.value })}
                     className="priority-select"
                   >
                     <option value="LOW">LOW</option>
@@ -274,14 +356,14 @@ function App() {
                 <div className="form-group description-group">
                   <label>DESCRIPTION</label>
                   <div className="description-input-wrapper">
-                    <textarea 
-                      value={manualForm.desc} 
-                      onChange={(e) => setManualForm({...manualForm, desc: e.target.value})}
+                    <textarea
+                      value={manualForm.desc}
+                      onChange={(e) => setManualForm({ ...manualForm, desc: e.target.value })}
                       placeholder="Type or use voice input..."
                       className="description-input"
                       rows="2"
                     />
-                    <button 
+                    <button
                       className={`voice-record-btn ${isRecording ? 'recording' : ''}`}
                       onMouseDown={() => startWhisperDictation()}
                       onMouseUp={stopWhisperDictation}
@@ -316,7 +398,7 @@ function App() {
             <h2 className="panel-title">DECK LOG</h2>
             <div className="log-count">{deckLog.length} ENTRIES</div>
           </div>
-          
+
           <div className="panel-content">
             {deckLog.length === 0 ? (
               <div className="empty-state">

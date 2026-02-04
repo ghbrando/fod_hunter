@@ -113,6 +113,42 @@ html, body, #root {
   object-fit: contain;
 }
 
+/* Viewport Controls Overlay */
+.viewport-controls {
+  position: absolute;
+  top: 12px;
+  left: 12px;
+  background: rgba(56, 56, 56, 0.9);
+  border: 1px solid #1a1a1a;
+  border-radius: 2px;
+  padding: 8px 12px;
+  z-index: 5;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.5);
+}
+
+.control-group {
+  display: flex;
+  gap: 16px;
+  margin-bottom: 6px;
+}
+
+.control-label {
+  font-size: 10px;
+  color: #d2d2d2;
+  font-weight: bold;
+  font-family: 'Courier New', monospace;
+  letter-spacing: 0.3px;
+}
+
+.control-hint {
+  font-size: 9px;
+  color: #999;
+  letter-spacing: 0.2px;
+  border-top: 1px solid #2a2a2a;
+  padding-top: 6px;
+  margin-top: 2px;
+}
+
 /* === FORM OVERLAY === */
 .form-overlay {
   position: absolute;
