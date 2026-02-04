@@ -1,0 +1,289 @@
+/* Full Window Reset */
+html, body, #root {
+  margin: 0;
+  padding: 0;
+  width: 100vw;
+  height: 100vh;
+  background-color: #383838;
+  color: #d2d2d2;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif;
+  overflow: hidden;
+  font-size: 12px;
+}
+
+.unity-gcs-theme {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  height: 100%;
+}
+
+/* Header Bar - Unity style toolbar */
+.unity-header {
+  height: 28px;
+  background: linear-gradient(to bottom, #5a5a5a 0%, #3c3c3c 100%);
+  border-bottom: 1px solid #1a1a1a;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-weight: normal;
+  font-size: 11px;
+  color: #c4c4c4;
+  padding: 0 12px;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05);
+}
+
+.stat {
+  padding: 0 8px;
+}
+
+.system-status {
+  color: #6ac045;
+  font-weight: 600;
+}
+
+/* Layout Container */
+.viewport-container {
+  display: flex;
+  flex: 1;
+  position: relative;
+  min-height: 0;
+  background: #2b2b2b;
+  gap: 0;
+}
+
+/* Video Feed Filling Background */
+.video-viewport {
+  flex: 1;
+  position: relative;
+  background: #202020;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  overflow: hidden;
+}
+
+.unity-stream {
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+}
+
+/* Unity Inspector-style Panels */
+.unity-panel {
+  width: 240px;
+  background: #383838;
+  border-left: 1px solid #1a1a1a;
+  border-right: 1px solid #1a1a1a;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 0 20px rgba(0, 0, 0, 0.5);
+  flex-shrink: 0;
+}
+
+.unity-panel.left {
+  border-right: 1px solid #1a1a1a;
+  border-left: none;
+}
+
+.unity-panel.right {
+  border-left: 1px solid #1a1a1a;
+  border-right: none;
+}
+
+.panel-title {
+  background: linear-gradient(to bottom, #4a4a4a 0%, #2f2f2f 100%);
+  color: #c4c4c4;
+  margin: 0;
+  padding: 8px 12px;
+  font-size: 11px;
+  font-weight: bold;
+  border-bottom: 1px solid #1a1a1a;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.03);
+}
+
+.panel-content {
+  flex: 1;
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+
+/* Scrollbar styling */
+.panel-content::-webkit-scrollbar {
+  width: 14px;
+  background: #2b2b2b;
+}
+
+.panel-content::-webkit-scrollbar-thumb {
+  background: #555;
+  border: 3px solid #2b2b2b;
+  border-radius: 7px;
+}
+
+.panel-content::-webkit-scrollbar-thumb:hover {
+  background: #666;
+}
+
+/* Card styling for active detections */
+.unity-card {
+  padding: 12px;
+  margin: 8px;
+  background: #3a3a3a;
+  border: 1px solid #4a4a4a;
+  border-radius: 3px;
+  transition: all 0.15s ease;
+}
+
+.unity-card:hover {
+  background: #404040;
+  border-color: #5a5a5a;
+}
+
+.unity-card.active {
+  border-left: 3px solid #6ac045;
+}
+
+.card-id {
+  font-size: 12px;
+  font-weight: bold;
+  color: #d2d2d2;
+  margin-bottom: 4px;
+}
+
+.card-conf {
+  font-size: 10px;
+  color: #999;
+}
+
+/* Checklist items */
+.unity-check-item {
+  display: flex;
+  align-items: center;
+  padding: 10px 12px;
+  border-bottom: 1px solid #2b2b2b;
+  font-size: 11px;
+  background: #383838;
+  transition: background 0.1s ease;
+  gap: 8px;
+}
+
+.unity-check-item:hover {
+  background: #3f3f3f;
+}
+
+.unity-check-item:last-child {
+  border-bottom: none;
+}
+
+.check-box {
+  width: 14px;
+  height: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 10px;
+  flex-shrink: 0;
+}
+
+.id-text {
+  flex: 1;
+  font-weight: 500;
+}
+
+.detected {
+  color: #d2d2d2;
+}
+
+.detected .check-box {
+  color: #6ac045;
+}
+
+.detected .status-badge {
+  background: rgba(106, 192, 69, 0.15);
+  color: #6ac045;
+  border-color: #6ac045;
+}
+
+.pending {
+  color: #828282;
+}
+
+.pending .check-box {
+  color: #555;
+}
+
+.pending .status-badge {
+  background: rgba(130, 130, 130, 0.1);
+  color: #828282;
+  border-color: #555;
+}
+
+.status-badge {
+  font-size: 9px;
+  border: 1px solid currentColor;
+  padding: 2px 6px;
+  border-radius: 2px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+}
+
+.mission-complete {
+  padding: 20px;
+  text-align: center;
+  color: #6ac045;
+  font-weight: bold;
+  font-size: 12px;
+  letter-spacing: 1px;
+}
+
+/* HUD Elements */
+.hud-brackets {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  pointer-events: none;
+  border: 2px solid rgba(106, 192, 69, 0.3);
+  margin: 40px;
+}
+
+.hud-brackets::before,
+.hud-brackets::after {
+  content: '';
+  position: absolute;
+  width: 20px;
+  height: 20px;
+  border: 2px solid #6ac045;
+}
+
+.hud-brackets::before {
+  top: -2px;
+  left: -2px;
+  border-right: none;
+  border-bottom: none;
+}
+
+.hud-brackets::after {
+  bottom: -2px;
+  right: -2px;
+  border-left: none;
+  border-top: none;
+}
+
+
+.id-stack {
+  display: flex;
+  flex-direction: column;
+  margin-left: 10px;
+}
+.time-text {
+  font-size: 0.6rem;
+  color: #666;
+}
+.unity-check-item.pending {
+  opacity: 0.6; /* Items not currently in view look "archived" */
+}

@@ -1,0 +1,176 @@
+﻿using System;
+using System.IO;
+using System.Linq;
+using System.Net;
+using System.Text;
+using System.Drawing;
+using System.Collections.Generic;
+using Microsoft.ML.OnnxRuntime;
+using Microsoft.ML.OnnxRuntime.Tensors;
+using Newtonsoft.Json;
+
+var builder = WebApplication.CreateBuilder(args);
+
+    builder.Services.AddCors(options =>
+    {
+        options.AddPolicy("AllowReact", policy =>
+        {
+            policy.WithOrigins("http://localhost:5173")
+                .AllowAnyHeader()
+                .AllowAnyMethod()
+                .AllowCredentials();
+        });
+    });
+
+    var app = builder.Build();
+
+    app.UseCors("AllowReact");
+
+class Program
+{
+    
+
+    static string modelPath = "best.onnx";
+    static string url = "http://localhost:5000/";
+
+    static void Main(string[] args)
+    {
+        Console.WriteLine("FOD Hunter MVP Server Starting...");
+        using var session = new InferenceSession(modelPath);
+        Console.WriteLine("AI Brain Loaded!");
+
+        HttpListener listener = new HttpListener();
+        listener.Prefixes.Add(url);
+        listener.Start();
+        Console.WriteLine("Listening for Unity drone feed...");
+
+        while (true)
+        {
+            try
+            {
+                var context = listener.GetContext();
+                using (var body = context.Request.InputStream)
+                using (var ms = new MemoryStream())
+                {
+                    body.CopyTo(ms);
+                    byte[] imageBytes = ms.ToArray();
+
+                    var result = RunDetection(session, imageBytes);
+
+                    // Apply Non-Maximum Suppression to stop the "Layering"
+                    var finalResult = ApplyNMS(result, 0.45f); 
+
+                    string json = JsonConvert.SerializeObject(finalResult);
+                    byte[] resp = Encoding.UTF8.GetBytes(json);
+                    context.Response.OutputStream.Write(resp, 0, resp.Length);
+                    context.Response.OutputStream.Close();
+
+                    if (finalResult.Count > 0)
+                        Console.WriteLine($"UNIQUE OBJECTS: {finalResult.Count} | MaxConf: {finalResult.Max(d => d.conf) * 100:0.0}%");
+                }
+            }
+            catch (Exception ex) { Console.WriteLine("Error: " + ex.Message); }
+        }
+    }
+
+    static List<DetectionResult> RunDetection(InferenceSession session, byte[] imageBytes)
+    {
+        var detections = new List<DetectionResult>();
+
+        using (var stream = new MemoryStream(imageBytes))
+        using (var bitmap = new Bitmap(stream))
+        using (var resized = new Bitmap(bitmap, new Size(640, 640)))
+        {
+            var name = session.InputMetadata.Keys.First();
+            DenseTensor<float> tensor = new DenseTensor<float>(new[] { 1, 3, 640, 640 });
+
+            for (int y = 0; y < 640; y++)
+            {
+                for (int x = 0; x < 640; x++)
+                {
+                    Color p = resized.GetPixel(x, y);
+                    tensor[0, 0, y, x] = p.R / 255.0f;
+                    tensor[0, 1, y, x] = p.G / 255.0f;
+                    tensor[0, 2, y, x] = p.B / 255.0f;
+                }
+            }
+
+            var inputs = new List<NamedOnnxValue> { NamedOnnxValue.CreateFromTensor(name, tensor) };
+            using var results = session.Run(inputs);
+            var output = results.First().AsTensor<float>();
+
+            int dim1 = output.Dimensions[1];
+            int dim2 = output.Dimensions[2];
+
+            // Filter by high confidence first (0.80+) to reduce noise
+            if (dim1 == 5)
+            {
+                for (int i = 0; i < 8400; i++)
+                {
+                    float conf = output[0, 4, i];
+                    if (conf > 0.80f) 
+                    {
+                        detections.Add(new DetectionResult { 
+                            x = output[0,0,i], y = output[0,1,i], w = output[0,2,i], h = output[0,3,i], conf = conf 
+                        });
+                    }
+                }
+            }
+            else
+            {
+                for (int i = 0; i < 8400; i++)
+                {
+                    float conf = output[0, i, 4];
+                    if (conf > 0.80f)
+                    {
+                        detections.Add(new DetectionResult { 
+                            x = output[0,i,0], y = output[0,i,1], w = output[0,i,2], h = output[0,i,3], conf = conf 
+                        });
+                    }
+                }
+            }
+        }
+        return detections;
+    }
+
+    // THE FIX: This removes boxes that are overlapping the same object
+    static List<DetectionResult> ApplyNMS(List<DetectionResult> detections, float iouThreshold)
+    {
+        var result = new List<DetectionResult>();
+        var sorted = detections.OrderByDescending(d => d.conf).ToList();
+
+        while (sorted.Count > 0)
+        {
+            var main = sorted[0];
+            result.Add(main);
+            sorted.RemoveAt(0);
+
+            // Remove any other boxes that overlap too much with the 'main' box
+            sorted.RemoveAll(next => CalculateIoU(main, next) > iouThreshold);
+        }
+        return result;
+    }
+
+    static float CalculateIoU(DetectionResult boxA, DetectionResult boxB)
+    {
+        float x1 = Math.Max(boxA.x - boxA.w/2, boxB.x - boxB.w/2);
+        float y1 = Math.Max(boxA.y - boxA.h/2, boxB.y - boxB.h/2);
+        float x2 = Math.Min(boxA.x + boxA.w/2, boxB.x + boxB.w/2);
+        float y2 = Math.Min(boxA.y + boxA.h/2, boxB.y + boxB.h/2);
+
+        float intersection = Math.Max(0, x2 - x1) * Math.Max(0, y2 - y1);
+        float areaA = boxA.w * boxA.h;
+        float areaB = boxB.w * boxB.h;
+        
+        return intersection / (areaA + areaB - intersection);
+    }
+}
+
+public class DetectionResult
+{
+    public float x { get; set; }
+    public float y { get; set; }
+    public float w { get; set; }
+    public float h { get; set; }
+    public float conf { get; set; }
+}
