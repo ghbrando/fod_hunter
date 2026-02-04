@@ -170,7 +170,7 @@ function App() {
             <div className="ai-cues">
               {activeDetections.length === 0 ? (
                 <div className="empty-state">
-                  <div className="empty-icon">📡</div>
+                  <div className="empty-icon">[ ]</div>
                   <p>No active detections</p>
                 </div>
               ) : (
@@ -210,7 +210,22 @@ function App() {
                           stopWhisperDictation();
                         }}
                       >
-                        {isTarget ? "🔴 Listening..." : "🎙️ Hold to Record"}
+                        {isTarget ? (
+                          <>
+                            <svg width="12" height="12" viewBox="0 0 14 14" fill="currentColor" style={{marginRight: '4px'}}>
+                              <circle cx="7" cy="7" r="4" />
+                            </svg>
+                            Listening...
+                          </>
+                        ) : (
+                          <>
+                            <svg width="12" height="12" viewBox="0 0 14 14" fill="currentColor" style={{marginRight: '4px'}}>
+                              <rect x="5" y="2" width="4" height="6" rx="2" />
+                              <path d="M3 7c0 2.2 1.8 4 4 4s4-1.8 4-4M7 11v3M5 14h4" stroke="currentColor" strokeWidth="1.2" fill="none" strokeLinecap="round" />
+                            </svg>
+                            Hold to Record
+                          </>
+                        )}
                       </button>
                     </div>
                   );
@@ -273,13 +288,22 @@ function App() {
                       onMouseLeave={stopWhisperDictation}
                       title="Hold to record"
                     >
-                      {isRecording ? '🔴' : '🎙️'}
+                      {isRecording ? (
+                        <svg width="14" height="14" viewBox="0 0 14 14" fill="currentColor">
+                          <circle cx="7" cy="7" r="5" />
+                        </svg>
+                      ) : (
+                        <svg width="14" height="14" viewBox="0 0 14 14" fill="currentColor">
+                          <rect x="5" y="2" width="4" height="6" rx="2" />
+                          <path d="M3 7c0 2.2 1.8 4 4 4s4-1.8 4-4M7 11v3M5 14h4" stroke="currentColor" strokeWidth="1.2" fill="none" strokeLinecap="round" />
+                        </svg>
+                      )}
                     </button>
                   </div>
                 </div>
 
                 <button className="commit-btn" onClick={commitToDeck}>
-                  📤 COMMIT TO DECK
+                  ▶ COMMIT TO DECK
                 </button>
               </div>
             </div>
@@ -296,7 +320,7 @@ function App() {
           <div className="panel-content">
             {deckLog.length === 0 ? (
               <div className="empty-state">
-                <div className="empty-icon">📋</div>
+                <div className="empty-icon">[ ]</div>
                 <p>No entries logged</p>
               </div>
             ) : (
@@ -310,7 +334,7 @@ function App() {
                   </div>
                   <div className="deck-card-desc">{item.desc}</div>
                   <div className="deck-card-footer">
-                    <span className="timestamp">⏱ {item.timestamp}</span>
+                    <span className="timestamp">» {item.timestamp}</span>
                   </div>
                 </div>
               ))
