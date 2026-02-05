@@ -1,16 +1,74 @@
-# React + Vite
+# FOD Hunter
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+This repo has three runtime pieces that talk to each other:
 
-Currently, two official plugins are available:
+- React UI (Vite) in `FodHunter.Web`
+- .NET API + vision server in `DotNetServer/src/FodHunter.Vision`
+- Whisper transcription service in `whisper_server.py`
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) (or [oxc](https://oxc.rs) when used in [rolldown-vite](https://vite.dev/guide/rolldown)) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+The fastest way to run everything is to open **three terminals**, one per service.
 
-## React Compiler
+## Prerequisites
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+- Node.js + npm
+- .NET SDK (8.x recommended)
+- Python 3.10+ (for Whisper)
+- A `best.onnx` model file in `DotNetServer/src/FodHunter.Vision` (the API loads it from the working directory)
 
-## Expanding the ESLint configuration
+## Install Dependencies (one-time)
 
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
+### 1) React UI
+
+```powershell
+cd FodHunter.Web
+npm install
+```
+
+### 2) .NET API
+
+```powershell
+cd DotNetServer/src/FodHunter.Vision
+dotnet restore
+```
+
+### 3) Whisper server
+
+```powershell
+cd <repo root>
+python -m venv whisper_env
+.\whisper_env\Scripts\Activate.ps1
+pip install -r requirements.txt
+```
+
+If you already have `whisper_env` created, just activate it and install requirements.
+
+## Run Everything (3 Terminals)
+
+Open three terminals at the repo root and run the following:
+
+### Terminal 1: Whisper server (port 8000)
+
+```powershell
+.\whisper_env\Scripts\Activate.ps1
+python .\whisper_server.py
+```
+
+### Terminal 2: .NET API + vision (port 5000)
+
+```powershell
+cd DotNetServer/src/FodHunter.Vision
+dotnet run
+```
+
+### Terminal 3: React UI (port 5173)
+
+```powershell
+cd FodHunter.Web
+npm run dev
+```
+
+Once all three are up, open the UI at `http://localhost:5173`.
+
+## Optional: Unity Sim
+
+The Unity project lives in `UnitySim/`. Open it in the Unity Editor and press Play after the three services above are running. Unity will post frames to the .NET API and poll for drone commands.

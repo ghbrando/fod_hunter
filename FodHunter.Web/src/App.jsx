@@ -367,7 +367,7 @@ function App() {
                     </div>
                   ) : (
                     activeDetections.map(obj => {
-                      const isGhost = (Date.now() - obj.lastSeen) > 500;
+                      const isGhost = (Date.now() - obj.lastSeen) > 700;
                       const isTarget = isRecording && manualForm.id === obj.id;
                       const isSelected = manualForm.id === obj.id;
 
