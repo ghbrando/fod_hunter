@@ -23,6 +23,15 @@ function App() {
   const mediaRecorderRef = useRef(null);
   const audioChunksRef = useRef([]);
   const [viewState, setViewState] = useState({ x: 0, y: 0, zoom: 1 });
+  const streamFrameRef = useRef(null);
+  const streamImgRef = useRef(null);
+  const [streamMetrics, setStreamMetrics] = useState({
+    scale: 1,
+    offsetX: 0,
+    offsetY: 0,
+    displayW: 0,
+    displayH: 0
+  });
 
   const getDistance = (p1, p2) => Math.sqrt(Math.pow(p1.x - p2.x, 2) + Math.pow(p1.y - p2.y, 2));
 
@@ -96,6 +105,7 @@ function App() {
         setActiveDetections(prev => {
           const now = Date.now();
           const DISTANCE_THRESHOLD = 60;
+          const JITTER_THRESHOLD = 6;
           const GRACE_MS = 1500;
 
           // Reserve IDs already on screen so we never double-assign within one frame
@@ -118,7 +128,10 @@ function App() {
 
             if (bestMatch) {
               usedPrevIds.add(bestMatch.id);
-              matched.push({ ...bestMatch, x: det.x, y: det.y, lastSeen: now });
+              const dist = getDistance(bestMatch, det);
+              const stableX = dist < JITTER_THRESHOLD ? bestMatch.x : det.x;
+              const stableY = dist < JITTER_THRESHOLD ? bestMatch.y : det.y;
+              matched.push({ ...bestMatch, x: stableX, y: stableY, lastSeen: now });
             } else {
               // Brand new track; mint a fresh ID from the global counter
               const newId = `TRACK-${nextIdRef.current++}`;
@@ -290,6 +303,36 @@ function App() {
     return () => clearInterval(interval);
   }, []);
 
+  useEffect(() => {
+    const frameEl = streamFrameRef.current;
+    const imgEl = streamImgRef.current;
+    if (!frameEl || !imgEl) return;
+
+    const updateMetrics = () => {
+      const frameRect = frameEl.getBoundingClientRect();
+      const frameW = frameRect.width;
+      const frameH = frameRect.height;
+      const imgW = imgEl.naturalWidth || 0;
+      const imgH = imgEl.naturalHeight || 0;
+
+      if (!frameW || !frameH || !imgW || !imgH) return;
+
+      const scale = Math.min(frameW / imgW, frameH / imgH);
+      const displayW = imgW * scale;
+      const displayH = imgH * scale;
+      const offsetX = (frameW - displayW) / 2;
+      const offsetY = (frameH - displayH) / 2;
+
+      setStreamMetrics({ scale, offsetX, offsetY, displayW, displayH });
+    };
+
+    const resizeObserver = new ResizeObserver(updateMetrics);
+    resizeObserver.observe(frameEl);
+    updateMetrics();
+
+    return () => resizeObserver.disconnect();
+  }, []);
+
   return (
     <Routes>
       <Route path="/" element={
@@ -384,8 +427,9 @@ function App() {
               </div>
             </aside>
 
-            {/* CENTER: Main Feed + Form Overlay */}
-            <main className="video-viewport" style={{ overflow: 'hidden' }}>
+            {/* CENTER: Main Feed + Docked Form */}
+            <main className="video-viewport">
+              <div className="video-shell">
               <div className="viewport-controls">
                 <div className="control-group">
                   <span className="control-label">DRONE CONTROLS</span>
@@ -395,23 +439,45 @@ function App() {
                 </div>
               </div>
 
-              <div className="stream-wrapper" style={{
-                width: '100%', height: '100%', display: 'flex',
-                alignItems: 'center', justifyContent: 'center', backgroundColor: '#000'
-              }}>
-                <div style={{
-                  position: 'relative',
-                  // This transform moves BOTH the image and the labels simultaneously
-                  transform: `translate3d(${viewState.x}px, ${viewState.y}px, 0) scale(${viewState.zoom})`,
-                  transition: 'transform 0.05s ease-out',
-                  willChange: 'transform'
-                }}>
-                  <img
-                    src="http://127.0.0.1:5000/stream"
-                    alt="DRONE_FEED"
-                    className="unity-stream"
-                    style={{ backfaceVisibility: 'hidden', imageRendering: 'pixelated' }}
-                  />
+              <div className="stream-wrapper">
+                <div className="stream-frame" ref={streamFrameRef}>
+                  <div className="stream-layer" style={{
+                    // This transform moves BOTH the image and the labels simultaneously
+                    transform: `translate3d(${viewState.x}px, ${viewState.y}px, 0) scale(${viewState.zoom})`,
+                    transition: 'transform 0.05s ease-out',
+                    willChange: 'transform'
+                  }}>
+                    <img
+                      src="http://127.0.0.1:5000/stream"
+                      alt="DRONE_FEED"
+                      className="unity-stream"
+                      ref={streamImgRef}
+                      onLoad={() => {
+                        const frameEl = streamFrameRef.current;
+                        const imgEl = streamImgRef.current;
+                        if (!frameEl || !imgEl) return;
+                        const frameRect = frameEl.getBoundingClientRect();
+                        const frameW = frameRect.width;
+                        const frameH = frameRect.height;
+                        const imgW = imgEl.naturalWidth || 0;
+                        const imgH = imgEl.naturalHeight || 0;
+                        if (!frameW || !frameH || !imgW || !imgH) return;
+                        const scale = Math.min(frameW / imgW, frameH / imgH);
+                        const displayW = imgW * scale;
+                        const displayH = imgH * scale;
+                        const offsetX = (frameW - displayW) / 2;
+                        const offsetY = (frameH - displayH) / 2;
+                        setStreamMetrics({ scale, offsetX, offsetY, displayW, displayH });
+                      }}
+                      style={{
+                        backfaceVisibility: 'hidden',
+                        position: 'absolute',
+                        left: streamMetrics.offsetX,
+                        top: streamMetrics.offsetY,
+                        width: streamMetrics.displayW || '100%',
+                        height: streamMetrics.displayH || '100%'
+                      }}
+                    />
 
                   {/* TACTICAL OVERLAY LAYER */}
                   <div className="detection-overlay" style={{
@@ -427,8 +493,8 @@ function App() {
                           key={obj.id}
                           style={{
                             position: 'absolute',
-                            left: `${obj.x}px`,
-                            top: `${obj.y}px`,
+                            left: `${streamMetrics.offsetX + (obj.x * streamMetrics.scale)}px`,
+                            top: `${streamMetrics.offsetY + (obj.y * streamMetrics.scale)}px`,
                             pointerEvents: 'auto', // Re-enable clicks for this label
                             cursor: 'pointer',
                             transform: 'translate(-50%, -50%)',
@@ -450,10 +516,13 @@ function App() {
                       );
                     })}
                   </div>
+                  </div>
                 </div>
               </div>
 
-              {/* Form Overlay at Bottom */}
+              </div>
+
+              {/* Form Dock */}
               <div className="form-overlay">
                 <div className="form-container">
                   <div className="form-header">
@@ -526,6 +595,10 @@ function App() {
 
             {/* RIGHT: Deck Log */}
             <aside className="unity-panel right">
+              <div className="panel-header">
+                <h2 className="panel-title">DECK LOG</h2>
+                <div className="log-count">{deckLog.length} TOTAL</div>
+              </div>
               <div className="panel-content">
                 {deckLog
                   .slice()

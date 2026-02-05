@@ -8,7 +8,7 @@ html, body, #root {
   color: #d2d2d2;
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif;
   overflow: hidden;
-  font-size: 12px;
+  font-size: 13px;
 }
 
 * {
@@ -26,13 +26,13 @@ html, body, #root {
 
 /* === HEADER === */
 .unity-header {
-  height: 32px;
+  height: 40px;
   background: linear-gradient(to bottom, #5a5a5a 0%, #3c3c3c 100%);
   border-bottom: 1px solid #1a1a1a;
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 0 12px;
+  padding: 0 16px;
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05);
 }
 
@@ -44,7 +44,7 @@ html, body, #root {
 }
 
 .app-title {
-  font-size: 11px;
+  font-size: 12px;
   font-weight: bold;
   color: #c4c4c4;
   letter-spacing: 0.3px;
@@ -52,7 +52,7 @@ html, body, #root {
 }
 
 .stat {
-  font-size: 11px;
+  font-size: 12px;
   color: #c4c4c4;
   font-weight: normal;
 }
@@ -64,7 +64,7 @@ html, body, #root {
   padding: 0;
   background: transparent;
   border-radius: 0;
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 600;
   letter-spacing: 0.3px;
 }
@@ -89,39 +89,82 @@ html, body, #root {
 
 /* === LAYOUT === */
 .viewport-container {
-  display: flex;
+  display: grid;
+  grid-template-columns: 320px minmax(0, 1fr) 320px;
   flex: 1;
   min-height: 0;
-  gap: 0;
-  background: #2b2b2b;
+  gap: 10px;
+  padding: 10px;
+  background: #2f2f2f;
 }
 
 /* === VIDEO VIEWPORT === */
 .video-viewport {
   flex: 1;
   position: relative;
-  background: #202020;
+  background: #2b2b2b;
+  display: grid;
+  grid-template-rows: minmax(0, 1fr) auto;
+  gap: 10px;
+  padding: 10px;
+  min-height: 0;
+  border: 1px solid #1a1a1a;
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.03);
+  border-radius: 8px;
+}
+
+.video-shell {
+  position: relative;
+  min-height: 0;
   display: flex;
-  justify-content: center;
-  align-items: center;
+  align-items: stretch;
+  background: #252525;
+  border: 1px solid #1a1a1a;
+  border-radius: 6px;
   overflow: hidden;
 }
 
 .unity-stream {
-  max-width: 100%;
-  max-height: 100%;
   object-fit: contain;
+  image-rendering: pixelated;
+}
+
+/* === STREAM FRAME === */
+.stream-wrapper {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #202020;
+  flex: 1;
+}
+
+.stream-frame {
+  width: 100%;
+  height: 100%;
+  background: #262626;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+}
+
+.stream-layer {
+  position: relative;
+  width: 100%;
+  height: 100%;
 }
 
 /* Viewport Controls Overlay */
 .viewport-controls {
   position: absolute;
-  top: 12px;
-  left: 12px;
+  top: 16px;
+  left: 16px;
   background: rgba(56, 56, 56, 0.9);
   border: 1px solid #1a1a1a;
   border-radius: 2px;
-  padding: 8px 12px;
+  padding: 10px 14px;
   z-index: 5;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.5);
 }
@@ -133,7 +176,7 @@ html, body, #root {
 }
 
 .control-label {
-  font-size: 10px;
+  font-size: 11px;
   color: #d2d2d2;
   font-weight: bold;
   font-family: 'Courier New', monospace;
@@ -141,7 +184,7 @@ html, body, #root {
 }
 
 .control-hint {
-  font-size: 9px;
+  font-size: 10px;
   color: #999;
   letter-spacing: 0.2px;
   border-top: 1px solid #2a2a2a;
@@ -151,31 +194,31 @@ html, body, #root {
 
 /* === FORM OVERLAY === */
 .form-overlay {
-  position: absolute;
-  bottom: 0;
-  left: 0;
-  right: 0;
+  position: static;
   width: 100%;
   z-index: 10;
+  padding: 0;
 }
 
 .form-container {
   background: #383838;
-  border-top: 1px solid #1a1a1a;
-  box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.5);
+  border: 1px solid #1a1a1a;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.35);
   overflow: hidden;
+  border-radius: 6px;
 }
 
 .form-header {
   background: linear-gradient(to bottom, #4a4a4a 0%, #2f2f2f 100%);
-  padding: 8px 16px;
+  padding: 10px 18px;
   border-bottom: 1px solid #1a1a1a;
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.03);
+  border-radius: 6px 6px 0 0;
 }
 
 .form-header h3 {
   margin: 0;
-  font-size: 11px;
+  font-size: 12px;
   font-weight: bold;
   color: #c4c4c4;
   text-transform: uppercase;
@@ -183,15 +226,15 @@ html, body, #root {
 }
 
 .form-body {
-  padding: 12px 16px;
+  padding: 16px 18px;
   display: flex;
-  gap: 12px;
+  gap: 16px;
   align-items: flex-end;
 }
 
 .form-row {
   display: flex;
-  gap: 10px;
+  gap: 14px;
   flex: 1;
 }
 
@@ -202,7 +245,7 @@ html, body, #root {
 }
 
 .form-group label {
-  font-size: 10px;
+  font-size: 11px;
   font-weight: normal;
   color: #999;
   text-transform: uppercase;
@@ -215,11 +258,12 @@ html, body, #root {
   background: #2a2a2a;
   border: 1px solid #1a1a1a;
   color: #d2d2d2;
-  padding: 6px 8px;
+  padding: 10px 12px;
   border-radius: 2px;
-  font-size: 11px;
+  font-size: 13px;
   font-family: inherit;
   transition: border-color 0.15s ease;
+  min-height: 38px;
 }
 
 .form-group input:focus,
@@ -236,11 +280,11 @@ html, body, #root {
 }
 
 .form-group.track-group {
-  flex: 0 0 180px;
+  flex: 0 0 220px;
 }
 
 .priority-group {
-  flex: 0 0 130px;
+  flex: 0 0 160px;
 }
 
 .priority-select {
@@ -255,7 +299,7 @@ html, body, #root {
 
 .description-group {
   flex: 1;
-  min-width: 300px;
+  min-width: 360px;
 }
 
 .description-input-wrapper {
@@ -267,23 +311,23 @@ html, body, #root {
 .description-input {
   flex: 1;
   resize: none;
-  min-height: 44px;
-  max-height: 44px;
-  padding-right: 44px;
+  min-height: 60px;
+  max-height: 60px;
+  padding-right: 52px;
   line-height: 1.4;
 }
 
 .voice-record-btn {
   position: absolute;
-  right: 6px;
-  top: 6px;
-  width: 32px;
-  height: 32px;
+  right: 8px;
+  top: 8px;
+  width: 40px;
+  height: 40px;
   background: #3a3a3a;
   border: 1px solid #1a1a1a;
   border-radius: 2px;
   cursor: pointer;
-  font-size: 14px;
+  font-size: 16px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -312,14 +356,14 @@ html, body, #root {
 }
 
 .commit-btn {
-  flex: 0 0 160px;
-  padding: 10px 16px;
+  flex: 0 0 200px;
+  padding: 14px 18px;
   background: linear-gradient(to bottom, #5a5a5a 0%, #3c3c3c 100%);
   border: 1px solid #1a1a1a;
   border-radius: 2px;
   color: #d2d2d2;
   font-weight: bold;
-  font-size: 11px;
+  font-size: 12px;
   text-transform: uppercase;
   letter-spacing: 0.5px;
   cursor: pointer;
@@ -340,13 +384,15 @@ html, body, #root {
 
 /* === SIDE PANELS === */
 .unity-panel {
-  width: 260px;
+  width: 320px;
   background: #383838;
   display: flex;
   flex-direction: column;
   flex-shrink: 0;
   border-left: 1px solid #1a1a1a;
-  box-shadow: 0 0 20px rgba(0, 0, 0, 0.5);
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.35);
+  border-radius: 6px;
+  overflow: hidden;
 }
 
 .unity-panel.left {
@@ -355,18 +401,18 @@ html, body, #root {
 }
 
 .panel-header {
-  background: linear-gradient(to bottom, #4a4a4a 0%, #2f2f2f 100%);
-  padding: 8px 12px;
+  background: linear-gradient(to bottom, #444 0%, #2f2f2f 100%);
+  padding: 10px 14px;
   border-bottom: 1px solid #1a1a1a;
   display: flex;
   justify-content: space-between;
   align-items: center;
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.03);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.02);
 }
 
 .panel-title {
   margin: 0;
-  font-size: 11px;
+  font-size: 12px;
   font-weight: bold;
   color: #c4c4c4;
   text-transform: uppercase;
@@ -375,7 +421,7 @@ html, body, #root {
 
 .detection-count,
 .log-count {
-  font-size: 10px;
+  font-size: 11px;
   color: #999;
   background: rgba(0, 0, 0, 0.2);
   padding: 2px 6px;
@@ -387,7 +433,7 @@ html, body, #root {
   flex: 1;
   overflow-y: auto;
   overflow-x: hidden;
-  padding: 8px;
+  padding: 12px;
 }
 
 /* Custom Scrollbar */
@@ -410,16 +456,17 @@ html, body, #root {
 .ai-cues {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 12px;
 }
 
 .cue-card {
-  background: #3a3a3a;
-  border: 1px solid #4a4a4a;
+  background: #353535;
+  border: 1px solid #2a2a2a;
   border-radius: 3px;
-  padding: 10px;
+  padding: 12px;
   cursor: pointer;
   transition: all 0.15s ease;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.03);
 }
 
 .cue-card:hover {
@@ -454,7 +501,7 @@ html, body, #root {
 }
 
 .track-id {
-  font-size: 12px;
+  font-size: 13px;
   font-weight: bold;
   color: #d2d2d2;
   letter-spacing: 0.3px;
@@ -482,7 +529,7 @@ html, body, #root {
 }
 
 .card-coords {
-  font-size: 10px;
+  font-size: 11px;
   color: #999;
   margin-bottom: 8px;
   font-family: 'Courier New', monospace;
@@ -490,12 +537,12 @@ html, body, #root {
 
 .mic-btn {
   width: 100%;
-  padding: 6px;
+  padding: 10px;
   background: linear-gradient(to bottom, #5a5a5a 0%, #3c3c3c 100%);
   border: 1px solid #1a1a1a;
   border-radius: 2px;
   color: #d2d2d2;
-  font-size: 10px;
+  font-size: 11px;
   cursor: pointer;
   transition: all 0.15s ease;
   font-weight: normal;
@@ -515,13 +562,14 @@ html, body, #root {
 
 /* === DECK LOG === */
 .deck-card {
-  background: #3a3a3a;
-  border: 1px solid #4a4a4a;
+  background: #343434;
+  border: 1px solid #2a2a2a;
   border-left: 3px solid #4a4a4a;
   border-radius: 3px;
-  padding: 10px;
-  margin-bottom: 8px;
+  padding: 12px;
+  margin-bottom: 10px;
   transition: all 0.15s ease;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.03);
 }
 
 .deck-card:hover {
@@ -553,14 +601,14 @@ html, body, #root {
 }
 
 .deck-track-id {
-  font-size: 11px;
+  font-size: 12px;
   font-weight: bold;
   color: #d2d2d2;
   letter-spacing: 0.3px;
 }
 
 .priority-badge {
-  font-size: 9px;
+  font-size: 10px;
   font-weight: bold;
   padding: 2px 6px;
   border-radius: 2px;
@@ -590,7 +638,7 @@ html, body, #root {
 }
 
 .deck-card-desc {
-  font-size: 11px;
+  font-size: 12px;
   color: #c0c0c0;
   line-height: 1.4;
   margin-bottom: 6px;
@@ -603,7 +651,7 @@ html, body, #root {
 }
 
 .timestamp {
-  font-size: 9px;
+  font-size: 10px;
   color: #828282;
   font-family: 'Courier New', monospace;
 }
@@ -614,13 +662,13 @@ html, body, #root {
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  padding: 40px 20px;
+  padding: 48px 20px;
   text-align: center;
   color: #666;
 }
 
 .empty-icon {
-  font-size: 32px;
+  font-size: 36px;
   margin-bottom: 10px;
   opacity: 0.3;
   font-weight: bold;
@@ -629,18 +677,18 @@ html, body, #root {
 
 .empty-state p {
   margin: 0;
-  font-size: 11px;
+  font-size: 12px;
   color: #828282;
 }
 
 /* === RESPONSIVE === */
 @media (max-width: 1200px) {
   .unity-panel {
-    width: 240px;
+    width: 260px;
   }
-  
-  .form-overlay {
-    width: 95%;
+
+  .viewport-container {
+    grid-template-columns: 260px minmax(0, 1fr) 260px;
   }
 }
 
@@ -649,10 +697,9 @@ html, body, #root {
   .unity-panel.right {
     display: none;
   }
-  
-  .form-overlay {
-    width: 95%;
-    max-width: 600px;
+
+  .viewport-container {
+    grid-template-columns: minmax(0, 1fr);
   }
 }
 

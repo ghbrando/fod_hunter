@@ -13,7 +13,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("FodHunter.Vision")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+079d738a593b104c197d404658685a23b8149f6b")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+7d2f38505705075ea6bac04a4af82792c8507efd")]
 [assembly: System.Reflection.AssemblyProductAttribute("FodHunter.Vision")]
 [assembly: System.Reflection.AssemblyTitleAttribute("FodHunter.Vision")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]
