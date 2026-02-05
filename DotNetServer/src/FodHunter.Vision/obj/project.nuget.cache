@@ -1,0 +1,16 @@
+{
+  "version": 2,
+  "dgSpecHash": "P7qKG8YePhE=",
+  "success": true,
+  "projectFilePath": "C:\\Users\\griss\\projects\\fod_hunter\\DotNetServer\\src\\FodHunter.Vision\\FodHunter.Vision.csproj",
+  "expectedPackageFiles": [
+    "C:\\Users\\griss\\.nuget\\packages\\microsoft.ml.onnxruntime\\1.23.2\\microsoft.ml.onnxruntime.1.23.2.nupkg.sha512",
+    "C:\\Users\\griss\\.nuget\\packages\\microsoft.ml.onnxruntime.managed\\1.23.2\\microsoft.ml.onnxruntime.managed.1.23.2.nupkg.sha512",
+    "C:\\Users\\griss\\.nuget\\packages\\microsoft.win32.systemevents\\10.0.2\\microsoft.win32.systemevents.10.0.2.nupkg.sha512",
+    "C:\\Users\\griss\\.nuget\\packages\\newtonsoft.json\\13.0.4\\newtonsoft.json.13.0.4.nupkg.sha512",
+    "C:\\Users\\griss\\.nuget\\packages\\system.drawing.common\\10.0.2\\system.drawing.common.10.0.2.nupkg.sha512",
+    "C:\\Users\\griss\\.nuget\\packages\\system.memory\\4.5.5\\system.memory.4.5.5.nupkg.sha512",
+    "C:\\Users\\griss\\.nuget\\packages\\system.numerics.tensors\\9.0.0\\system.numerics.tensors.9.0.0.nupkg.sha512"
+  ],
+  "logs": []
+}

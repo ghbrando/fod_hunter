@@ -1,0 +1,39 @@
+import os
+from fastapi import FastAPI, UploadFile, File
+from fastapi.middleware.cors import CORSMiddleware
+from faster_whisper import WhisperModel
+import uvicorn
+import shutil
+
+# Force DLL directory for the 4090
+os.add_dll_directory(os.getcwd())
+
+app = FastAPI()
+
+# Allow React to talk to this server
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+# Load the high-accuracy model
+print("Loading Large-v3 on 4090...")
+model = WhisperModel("large-v3", device="cuda", compute_type="float16")
+print("Whisper Server Online at port 8000")
+
+@app.post("/transcribe")
+async def transcribe(file: UploadFile = File(...)):
+    temp_path = "incoming_voice.webm"
+    with open(temp_path, "wb") as buffer:
+        shutil.copyfileobj(file.file, buffer)
+    
+    # Transcribe the operator's voice
+    segments, _ = model.transcribe(temp_path, beam_size=5)
+    text = " ".join([s.text for s in segments]).strip()
+    
+    return {"text": text}
+
+if __name__ == "__main__":
+    uvicorn.run(app, host="0.0.0.0", port=8000)

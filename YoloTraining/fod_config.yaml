@@ -1,0 +1,10 @@
+# 1. Absolute path to where your IMAGES actually are
+path: C:/FOD_Hunter_MVP/YoloTraining/datasets
+
+# 2. Folder names inside that path
+train: images/train
+val: images/val
+
+# 3. Class Names
+nc: 1
+names: ['FOD']
