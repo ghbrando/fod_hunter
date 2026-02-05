@@ -720,12 +720,18 @@ html, body, #root {
   color: #666;
 }
 
-/* Keep the CLEARED badge sharp and green */
+/* Ensure the CLEARED badge never has a strikethrough */
 .deck-card.is-resolved .resolved-badge {
-  text-decoration: none !important;
-  display: inline-block;
-  color: #6ac045;
-  border: 1px solid #6ac045;
-  background: rgba(106, 192, 69, 0.1);
-  opacity: 1;
+    text-decoration: none !important;
+    display: inline-block;
+    color: #6ac045;
+    border: 1px solid #6ac045;
+    background: rgba(106, 192, 69, 0.1);
+    /* Boost opacity so it stays sharp even if the card fades */
+    opacity: 1 !important; 
+}
+
+/* Specifically target the text inside the badge just in case */
+.resolved-badge {
+    text-decoration: none !important;
 }

@@ -4,7 +4,6 @@ import './Worker.css';
 function WorkerDashboard() {
     const [tasks, setTasks] = useState([]);
 
-    // 1. Poll the .NET server for Committed Logs
     useEffect(() => {
         const fetchLogs = async () => {
             try {
@@ -19,24 +18,16 @@ function WorkerDashboard() {
         return () => clearInterval(interval);
     }, []);
 
-    // 2. Resolve Task Logic
     const handleResolve = async (trackId) => {
-    try {
-        // Use 127.0.0.1 to avoid the 168ms DNS delay
-        const response = await fetch(`http://127.0.0.1:5000/resolve/${trackId}`, { 
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' }
-        });
-        
-        if (response.ok) {
-            console.log(`Successfully cleared ${trackId}`); // Debug check
-        } else {
-            console.error("Server refused resolve:", await response.text());
+        try {
+            await fetch(`http://127.0.0.1:5000/resolve/${trackId}`, { 
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' }
+            });
+        } catch (err) {
+            console.error("Resolve Error:", err);
         }
-    } catch (err) {
-        console.error("Network Error during resolve:", err);
-    }
-};
+    };
 
     return (
         <div className="worker-theme">
@@ -46,16 +37,20 @@ function WorkerDashboard() {
             <div className="task-list">
                 {tasks
                     .slice()
-                    .sort((a, b) => (a.isResolved === b.isResolved ? 0 : a.isResolved ? 1 : -1)) // Corrected Sort
+                    .sort((a, b) => (a.isResolved === b.isResolved ? 0 : a.isResolved ? 1 : -1))
                     .map(task => (
-                        <div key={task.id} className={`task-card ${task.isResolved ? 'task-done' : ''}`}>
+                        /* Added dynamic priority class */
+                        <div key={task.id} className={`task-card priority-${task.priority?.toLowerCase()} ${task.isResolved ? 'task-done' : ''}`}>
                             <div className="task-info">
-                                {/* Use lowercase property names from the JSON */}
-                                <span className="task-id">{task.id}</span>
-                                <span className="task-loc">LOC: [{task.x?.toFixed(0)}, {task.y?.toFixed(0)}]</span>
-                                <p style={{ textDecoration: task.isResolved ? 'line-through' : 'none' }}>
+                                {/* Description is now the primary title */}
+                                <h2 className="task-desc-title" style={{ textDecoration: task.isResolved ? 'line-through' : 'none' }}>
                                     {task.desc}
-                                </p>
+                                </h2>
+                                <div className="task-subtext">
+                                    <span className="task-id-small">{task.id}</span>
+                                    <span className="task-loc-small">LOC: [{task.x?.toFixed(0)}, {task.y?.toFixed(0)}]</span>
+                                    <span className={`priority-tag p-${task.priority?.toLowerCase()}`}>{task.priority}</span>
+                                </div>
                             </div>
                             {!task.isResolved && (
                                 <button className="resolve-btn" onClick={() => handleResolve(task.id)}>

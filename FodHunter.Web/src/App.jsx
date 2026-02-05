@@ -10,6 +10,16 @@ function App() {
   const [manualForm, setManualForm] = useState({ id: '', desc: '', priority: 'LOW' });
 
   const nextIdRef = useRef(1);
+
+  // Add this useEffect to sync the counter with the existing log count once
+  useEffect(() => {
+    if (deckLog.length > 0) {
+      const maxLoggedId = Math.max(...deckLog.map(item =>
+        parseInt(item.id.replace('TRACK-', '')) || 0
+      ));
+      nextIdRef.current = Math.max(nextIdRef.current, maxLoggedId + 1);
+    }
+  }, [deckLog.length]);
   const mediaRecorderRef = useRef(null);
   const audioChunksRef = useRef([]);
   const [viewState, setViewState] = useState({ x: 0, y: 0, zoom: 1 });
@@ -84,35 +94,60 @@ function App() {
         const rawData = await response.json();
         const now = Date.now();
         const GRACE_PERIOD = 5000;
-        const DISTANCE_THRESHOLD = 50;
+        const DISTANCE_THRESHOLD = 60;
 
         setActiveDetections(prev => {
-          const seenInThisFrame = rawData.map(det => {
+          const now = Date.now();
+          const DISTANCE_THRESHOLD = 60; // Tighten for accuracy
+          const committedCount = deckLog.length;
+
+          // PASS 1: Match raw detections to existing objects
+          const currentFrame = rawData.map(det => {
+            // Only look for a match that hasn't been "taken" yet in this frame
             let match = prev.find(obj => getDistance(obj, det) < DISTANCE_THRESHOLD);
+
             if (match) {
-              return { ...match, x: det.x, y: det.y, lastSeen: now };
-            } else {
+              return { ...match, x: det.x, y: det.y, lastSeen: now, isMatched: true };
+            }
+            return { ...det, isNew: true, lastSeen: now };
+          });
+
+          // PASS 2: Assign IDs to new objects
+          const finalizedFrame = currentFrame.map(obj => {
+            if (obj.isNew) {
+              // Logic: Start from (Total Committed + Current Max ID found in previous state + 1)
+              const maxPrevId = prev.length > 0
+                ? Math.max(...prev.map(p => parseInt(p.id.replace('TRACK-', '')) || 0))
+                : committedCount;
+
+              const newIdNum = Math.max(maxPrevId, committedCount) + 1;
+
+              // Ensure we don't accidentally duplicate an ID currently on screen
+              let finalNum = newIdNum;
+              while (prev.some(p => p.id === `TRACK-${finalNum}`)) { finalNum++; }
+
               return {
-                id: `TRACK-${nextIdRef.current++}`,
-                x: det.x,
-                y: det.y,
+                id: `TRACK-${finalNum}`,
+                x: obj.x,
+                y: obj.y,
                 lastSeen: now
               };
             }
+            return obj;
           });
 
+          // PASS 3: Cleanup ghosts
           const persistentGhosts = prev.filter(obj => {
-            const isNotCurrentlySeen = !seenInThisFrame.find(s => s.id === obj.id);
-            const isWithinGracePeriod = (now - obj.lastSeen) < 5000; // 5 second safety
+            const isCurrentlySeen = finalizedFrame.some(s => s.id === obj.id);
+            const alreadyCommitted = deckLog.some(log => log.id === obj.id);
+            const isWithinGrace = (now - obj.lastSeen) < 1500; // Snappier cleanup
+            const isSelected = manualForm.id === obj.id;
 
-            // CRITICAL FIX: If this is the track Brandon is currently editing, 
-            // DO NOT let it flash or disappear even if AI loses it!
-            const isCurrentlySelected = manualForm.id === obj.id;
-
-            return isNotCurrentlySeen && (isWithinGracePeriod || isCurrentlySelected);
+            // Remove if already committed, or if it's not seen and timed out
+            return !isCurrentlySeen && !alreadyCommitted && (isWithinGrace || isSelected);
           });
 
-          return [...seenInThisFrame, ...persistentGhosts].sort((a, b) => {
+          return [...finalizedFrame, ...persistentGhosts].sort((a, b) => {
             return a.id.localeCompare(b.id, undefined, { numeric: true });
           });
         });
@@ -234,9 +269,10 @@ function App() {
     try {
       const response = await fetch('http://127.0.0.1:5000/deck-logs');
       const data = await response.json();
+      // Ensure this state update is working!
       setDeckLog(data);
     } catch (err) {
-      console.error("Log Sync Error:", err);
+      console.error("Sync Error:", err);
     }
   };
 
