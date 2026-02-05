@@ -92,64 +92,62 @@ function App() {
       try {
         const response = await fetch('http://localhost:5000/latest');
         const rawData = await response.json();
-        const now = Date.now();
-        const GRACE_PERIOD = 5000;
-        const DISTANCE_THRESHOLD = 60;
 
         setActiveDetections(prev => {
           const now = Date.now();
-          const DISTANCE_THRESHOLD = 60; // Tighten for accuracy
-          const committedCount = deckLog.length;
+          const DISTANCE_THRESHOLD = 60;
+          const GRACE_MS = 1500;
 
-          // PASS 1: Match raw detections to existing objects
-          const currentFrame = rawData.map(det => {
-            // Only look for a match that hasn't been "taken" yet in this frame
-            let match = prev.find(obj => getDistance(obj, det) < DISTANCE_THRESHOLD);
+          // Reserve IDs already on screen so we never double-assign within one frame
+          const usedPrevIds = new Set();
+          const matched = [];
 
-            if (match) {
-              return { ...match, x: det.x, y: det.y, lastSeen: now, isMatched: true };
+          rawData.forEach(det => {
+            // Find the closest previous object that hasn't been paired yet
+            let bestMatch = null;
+            let bestDist = Number.POSITIVE_INFINITY;
+
+            prev.forEach(obj => {
+              if (usedPrevIds.has(obj.id)) return;
+              const dist = getDistance(obj, det);
+              if (dist < DISTANCE_THRESHOLD && dist < bestDist) {
+                bestMatch = obj;
+                bestDist = dist;
+              }
+            });
+
+            if (bestMatch) {
+              usedPrevIds.add(bestMatch.id);
+              matched.push({ ...bestMatch, x: det.x, y: det.y, lastSeen: now });
+            } else {
+              // Brand new track; mint a fresh ID from the global counter
+              const newId = `TRACK-${nextIdRef.current++}`;
+              matched.push({ id: newId, x: det.x, y: det.y, lastSeen: now });
             }
-            return { ...det, isNew: true, lastSeen: now };
           });
 
-          // PASS 2: Assign IDs to new objects
-          const finalizedFrame = currentFrame.map(obj => {
-            if (obj.isNew) {
-              // Logic: Start from (Total Committed + Current Max ID found in previous state + 1)
-              const maxPrevId = prev.length > 0
-                ? Math.max(...prev.map(p => parseInt(p.id.replace('TRACK-', '')) || 0))
-                : committedCount;
-
-              const newIdNum = Math.max(maxPrevId, committedCount) + 1;
-
-              // Ensure we don't accidentally duplicate an ID currently on screen
-              let finalNum = newIdNum;
-              while (prev.some(p => p.id === `TRACK-${finalNum}`)) { finalNum++; }
-
-              return {
-                id: `TRACK-${finalNum}`,
-                x: obj.x,
-                y: obj.y,
-                lastSeen: now
-              };
-            }
-            return obj;
-          });
-
-          // PASS 3: Cleanup ghosts
-          const persistentGhosts = prev.filter(obj => {
-            const isCurrentlySeen = finalizedFrame.some(s => s.id === obj.id);
+          // Keep temporarily "ghosted" tracks so their labels fade out instead of duplicating
+          const ghosts = prev.filter(obj => {
+            if (usedPrevIds.has(obj.id)) return false; // already matched
             const alreadyCommitted = deckLog.some(log => log.id === obj.id);
-            const isWithinGrace = (now - obj.lastSeen) < 1500; // Snappier cleanup
-            const isSelected = manualForm.id === obj.id;
-
-            // Remove if already committed, or if it's not seen and timed out
-            return !isCurrentlySeen && !alreadyCommitted && (isWithinGrace || isSelected);
+            const stillWithinGrace = (now - obj.lastSeen) < GRACE_MS;
+            return !alreadyCommitted && stillWithinGrace;
           });
 
-          return [...finalizedFrame, ...persistentGhosts].sort((a, b) => {
-            return a.id.localeCompare(b.id, undefined, { numeric: true });
-          });
+          // Merge and dedupe by first occurrence to ensure one label per ID
+          const merged = [...matched, ...ghosts];
+          const deduped = [];
+          const seenIds = new Set();
+          for (const obj of merged) {
+            if (seenIds.has(obj.id)) continue;
+            seenIds.add(obj.id);
+            deduped.push(obj);
+          }
+
+          // Drop any tracks that have aged out entirely (clears stale labels)
+          const cleaned = deduped.filter(obj => (now - obj.lastSeen) < GRACE_MS * 1.5);
+
+          return cleaned.sort((a, b) => a.id.localeCompare(b.id, undefined, { numeric: true }));
         });
 
       } catch (err) {
@@ -159,7 +157,16 @@ function App() {
 
     const interval = setInterval(fetchDetections, 200);
     return () => clearInterval(interval);
-  }, [isRecording, manualForm.id]);
+  }, [isRecording, deckLog]);
+
+  // Clear the selected track if it disappears from the feed
+  useEffect(() => {
+    if (!manualForm.id) return;
+    const stillPresent = activeDetections.some(d => d.id === manualForm.id);
+    if (!stillPresent) {
+      setManualForm(prev => ({ ...prev, id: '' }));
+    }
+  }, [activeDetections, manualForm.id]);
 
   const selectTrack = (trackId) => {
     console.log("Internal Select Fired for:", trackId);
