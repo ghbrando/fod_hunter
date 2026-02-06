@@ -25,7 +25,6 @@ app.UseCors("AllowReact");
 MoveCommand currentCommand = new MoveCommand { direction = "none", speed = 0f };
 object commandLock = new object();
 
-// React sends commands here
 app.MapPost("/drone/move", (MoveCommand cmd) =>
 {
     lock (commandLock)
@@ -36,14 +35,12 @@ app.MapPost("/drone/move", (MoveCommand cmd) =>
     return Results.Ok(new { success = true });
 });
 
-// Unity polls this endpoint
 app.MapGet("/drone/command", () =>
 {
     MoveCommand cmdToSend;
     lock (commandLock)
     {
         cmdToSend = currentCommand;
-        // Reset after Unity reads (prevents drift)
         currentCommand = new MoveCommand { direction = "none", speed = 0f };
     }
     return Results.Json(cmdToSend);
@@ -54,20 +51,14 @@ app.MapGet("/drone/command", () =>
 // ==========================================
 app.MapPost("/whisper", async (IFormFile file) =>
 {
-    Console.WriteLine($"---> Receiving audio: {file?.FileName} ({file?.Length} bytes)");
-    
     if (file == null || file.Length == 0) return Results.BadRequest("No audio file");
-
     using var client = new HttpClient();
     using var content = new MultipartFormDataContent();
-    
     using var stream = file.OpenReadStream();
     var fileContent = new StreamContent(stream);
     content.Add(fileContent, "file", "audio.webm");
-
     var response = await client.PostAsync("http://localhost:8000/transcribe", content);
     var jsonResponse = await response.Content.ReadAsStringAsync();
-    
     return Results.Content(jsonResponse, "application/json");
 });
 
@@ -77,22 +68,21 @@ app.MapPost("/whisper", async (IFormFile file) =>
 string modelPath = "best.onnx";
 byte[] latestFrame = Array.Empty<byte>();
 object frameLock = new object();
-var session = new InferenceSession(modelPath);
+// Ensure best.onnx exists or wrap in try-catch if needed
+var session = new InferenceSession(modelPath); 
 List<DetectionResult> lastAiResult = new List<DetectionResult>();
 
-Console.WriteLine("✅ FOD Hunter MVP: AI Brain Loaded & Server Ready!");
+Console.WriteLine("✅ FOD Hunter MVP: Server Restarted & Ready!");
 
-// MJPEG Stream for React
+// 1. STREAM ENDPOINT (Used by React Video Feed)
 app.MapGet("/stream", async (HttpContext context) =>
 {
     var token = context.RequestAborted;
     context.Response.ContentType = "multipart/x-mixed-replace; boundary=frame";
-    
     while (!token.IsCancellationRequested)
     {
         byte[] frameToSend;
         lock (frameLock) { frameToSend = latestFrame; }
-
         if (frameToSend != null && frameToSend.Length > 0)
         {
             try 
@@ -106,107 +96,90 @@ app.MapGet("/stream", async (HttpContext context) =>
             } 
             catch { break; } 
         }
-        await Task.Delay(1, token);
+        await Task.Delay(33, token); // ~30 FPS cap
     }
 });
 
-// Unity uploads frames + gets detections
-app.MapPost("/", async (HttpContext context) =>
+// 2. UNITY UPLOAD: STREAM FRAME (With Red Boxes)
+app.MapPost("/upload_stream", async (HttpContext context) =>
 {
     using var ms = new MemoryStream();
     await context.Request.Body.CopyToAsync(ms);
     byte[] imageBytes = ms.ToArray();
+    if (imageBytes.Length > 0) lock (frameLock) { latestFrame = imageBytes; }
+    return Results.Ok();
+});
 
+// 3. UNITY UPLOAD: INFERENCE FRAME (Clean / No Boxes)
+app.MapPost("/upload_inference", async (HttpContext context) =>
+{
+    using var ms = new MemoryStream();
+    await context.Request.Body.CopyToAsync(ms);
+    byte[] imageBytes = ms.ToArray();
     if (imageBytes.Length == 0) return Results.BadRequest();
 
-    lock (frameLock) { latestFrame = imageBytes; }
-
+    // Run AI on this clean frame, but DON'T update the video feed
     var result = RunDetection(session, imageBytes);
     lastAiResult = ApplyNMS(result, 0.45f);
     return Results.Json(lastAiResult);
 });
 
-// React gets latest detections
 app.MapGet("/latest", () => Results.Json(lastAiResult));
 
-Console.WriteLine("📡 Endpoints Active:");
-Console.WriteLine("   - GET  /stream         (Video feed)");
-Console.WriteLine("   - GET  /latest         (AI detections)");
-Console.WriteLine("   - POST /               (Unity frame upload)");
-Console.WriteLine("   - POST /drone/move     (React → Backend)");
-Console.WriteLine("   - GET  /drone/command  (Unity polls this)");
-Console.WriteLine("   - POST /whisper        (Voice transcription)");
-
+// ==========================================
+// LOGGING SYSTEM
+// ==========================================
 List<FodEntry> deckLog = new List<FodEntry>();
-
-// 2. DEFINE THE NEW ROUTES (Before app.Run!)
 app.MapGet("/deck-logs", () => deckLog);
-
 app.MapPost("/resolve/{id}", (string id) => {
-    // Search the log for the ID regardless of lowercase/uppercase
     var entry = deckLog.FirstOrDefault(e => e.Id.Equals(id, StringComparison.OrdinalIgnoreCase));
     if (entry != null) {
         entry.IsResolved = true;
-        Console.WriteLine($"[API] Task {id} marked as CLEAR by worker."); // Log it!
         return Results.Ok();
     }
-    return Results.NotFound($"Track {id} not found in log.");
+    return Results.NotFound();
 });
-
-// 3. UPDATE THE COMMIT ROUTE (Modify your existing POST / commit logic)
 app.MapPost("/commit", (FodEntry entry) => {
     entry.Timestamp = DateTime.Now.ToString("HH:mm:ss");
     deckLog.Add(entry);
-    Console.WriteLine($"[DRONE] New FOD Committed: {entry.Id}");
     return Results.Ok();
 });
 
-
 app.Run("http://localhost:5000");
 
-// ==========================================
-// AI HELPER METHODS
-// ==========================================
+// --- HELPER METHODS ---
 List<DetectionResult> RunDetection(InferenceSession session, byte[] imageBytes)
 {
     var detections = new List<DetectionResult>();
-    try 
-    {
+    try {
         using var ms = new MemoryStream(imageBytes);
         using var bitmap = new Bitmap(ms); 
         using var resized = new Bitmap(bitmap, new Size(640, 640));
-        
         var name = session.InputMetadata.Keys.First();
         var tensor = new DenseTensor<float>(new[] { 1, 3, 640, 640 });
 
-        for (int y = 0; y < 640; y++)
-        {
-            for (int x = 0; x < 640; x++)
-            {
+        for (int y = 0; y < 640; y++) {
+            for (int x = 0; x < 640; x++) {
                 var p = resized.GetPixel(x, y);
                 tensor[0, 0, y, x] = p.R / 255.0f;
                 tensor[0, 1, y, x] = p.G / 255.0f;
                 tensor[0, 2, y, x] = p.B / 255.0f;
             }
         }
-
         var inputs = new List<NamedOnnxValue> { NamedOnnxValue.CreateFromTensor(name, tensor) };
         using var results = session.Run(inputs);
         var output = results.First().AsTensor<float>();
 
-        for (int i = 0; i < 8400; i++)
-        {
+        for (int i = 0; i < 8400; i++) {
             float conf = output[0, 4, i]; 
-            if (conf > 0.80f)
-            {
+            if (conf > 0.80f) {
                 detections.Add(new DetectionResult { 
                     x = output[0,0,i], y = output[0,1,i], 
                     w = output[0,2,i], h = output[0,3,i], conf = conf 
                 });
             }
         }
-    } 
-    catch (Exception ex) { Console.WriteLine("AI Error: " + ex.Message); }
+    } catch (Exception ex) { Console.WriteLine("AI Error: " + ex.Message); }
     return detections;
 }
 
@@ -214,8 +187,7 @@ List<DetectionResult> ApplyNMS(List<DetectionResult> detections, float iouThresh
 {
     var result = new List<DetectionResult>();
     var sorted = detections.OrderByDescending(d => d.conf).ToList();
-    while (sorted.Count > 0)
-    {
+    while (sorted.Count > 0) {
         var main = sorted[0];
         result.Add(main);
         sorted.RemoveAt(0);
@@ -235,17 +207,13 @@ float CalculateIoU(DetectionResult boxA, DetectionResult boxB)
 }
 
 // ==========================================
-// DATA MODELS
+// MISSING CLASSES ADDED BELOW
 // ==========================================
-public class FodEntry 
-{
-    public string Id { get; set; }
-    public string Desc { get; set; }
-    public string Priority { get; set; }
-    public string Timestamp { get; set; }
-    public bool IsResolved { get; set; } = false; // The Ground Worker flips this!
-    public float X { get; set; } // Store the location for the worker
-    public float Y { get; set; }
+
+public class MoveCommand 
+{ 
+    public string direction { get; set; } = "none";
+    public float speed { get; set; } = 0f;
 }
 
 public class DetectionResult 
@@ -257,8 +225,13 @@ public class DetectionResult
     public float conf {get; set;} 
 }
 
-public class MoveCommand 
-{ 
-    public string direction { get; set; } = "none";
-    public float speed { get; set; } = 0f;
+public class FodEntry 
+{
+    public string Id { get; set; }
+    public string Desc { get; set; }
+    public string Priority { get; set; }
+    public string Timestamp { get; set; }
+    public bool IsResolved { get; set; } = false;
+    public float X { get; set; } 
+    public float Y { get; set; }
 }

@@ -498,7 +498,8 @@ function App() {
                             pointerEvents: 'auto', // Re-enable clicks for this label
                             cursor: 'pointer',
                             transform: 'translate(-50%, -50%)',
-                            zIndex: 10000
+                            zIndex: 10000,
+                            // opacity: 0
                           }}
                           // Using onMouseDown is faster than onClick for transformed layers
                           onMouseDown={(e) => {
