@@ -2,6 +2,15 @@
 
 **Edge-AI foreign object debris detection for flight decks.**
 
+<p>
+  <img src="https://img.shields.io/badge/YOLOv8-111F68?style=flat-square&logo=yolo&logoColor=white" alt="YOLOv8" />
+  <img src="https://img.shields.io/badge/ONNX_Runtime-005CED?style=flat-square&logo=onnx&logoColor=white" alt="ONNX Runtime" />
+  <img src="https://img.shields.io/badge/.NET_9-512BD4?style=flat-square&logo=dotnet&logoColor=white" alt=".NET 9" />
+  <img src="https://img.shields.io/badge/Whisper-412991?style=flat-square&logo=openai&logoColor=white" alt="Whisper" />
+  <img src="https://img.shields.io/badge/React_19-20232A?style=flat-square&logo=react&logoColor=white" alt="React 19" />
+  <img src="https://img.shields.io/badge/Unity-000000?style=flat-square&logo=unity&logoColor=white" alt="Unity" />
+</p>
+
 Foreign object debris (FOD), such as a dropped tool or a loose bolt, can destroy a jet engine. Today, sailors find it with a slow, manual walk-down of the whole deck. F.O.D. Hunter puts a drone over the deck instead. A YOLOv8 model spots debris in the live camera feed, operators steer the drone and log finds by voice, and deck workers get a task list of what to clear.
 
 <p align="center"><img src="docs/drone-view.jpg" width="420" alt="Simulated drone view of a flight deck with debris" /></p>
