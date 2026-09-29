@@ -13,7 +13,9 @@
 
 Foreign object debris (FOD), such as a dropped tool or a loose bolt, can destroy a jet engine. Today, sailors find it with a slow, manual walk-down of the whole deck. F.O.D. Hunter puts a drone over the deck instead. A YOLOv8 model spots debris in the live camera feed, operators steer the drone and log finds by voice, and deck workers get a task list of what to clear.
 
-<p align="center"><img src="docs/drone-view.jpg" width="420" alt="Simulated drone view of a flight deck with debris" /></p>
+<p align="center"><img src="docs/demo/demo.gif" width="860" alt="Demo: the model tags hammers in the drone feed, the operator logs them to the deck, and the deck crew marks them clear" /></p>
+
+<p align="center"><sub>Real model and consoles, simulated deck feed. <a href="docs/demo/README.md">How this was recorded</a>.</sub></p>
 
 ## How it works
 
